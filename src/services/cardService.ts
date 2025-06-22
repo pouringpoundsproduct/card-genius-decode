@@ -1,5 +1,5 @@
-
 import { CreditCard, ApiResponse } from '../types/card';
+import Fuse from 'fuse.js';
 
 const API_BASE_URL = 'https://bk-api.bankkaro.com/sp/api';
 
@@ -28,6 +28,7 @@ const fallbackTags = [
 
 class CardService {
   private allCards: CreditCard[] = [];
+  private fuse: Fuse<CreditCard> | null = null;
 
   private async makeRequest(endpoint: string, data?: any): Promise<any> {
     try {
@@ -76,6 +77,7 @@ class CardService {
       
       if (response && response.data && response.data.cards) {
         this.allCards = this.transformCards(response.data.cards);
+        this.initializeFuse();
         console.log('Transformed cards:', this.allCards);
         return this.allCards;
       }
@@ -83,7 +85,19 @@ class CardService {
       return [];
     } catch (error) {
       console.error('Error in getAllCards:', error);
-      // Return empty array instead of throwing to prevent app crash
+      return [];
+    }
+  }
+
+  async getFeaturedCards(): Promise<CreditCard[]> {
+    try {
+      // Get all cards first
+      const allCards = await this.getAllCards();
+      
+      // Return a subset of featured cards (e.g., first 10 cards)
+      return allCards.slice(0, 10);
+    } catch (error) {
+      console.error('Error in getFeaturedCards:', error);
       return [];
     }
   }
@@ -285,6 +299,23 @@ class CardService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
+  }
+
+  private initializeFuse() {
+    if (this.allCards.length > 0) {
+      const options = {
+        keys: [
+          { name: 'name', weight: 0.7 },
+          { name: 'bank_name', weight: 0.5 },
+          { name: 'features', weight: 0.3 },
+          { name: 'tags', weight: 0.4 }
+        ],
+        threshold: 0.3,
+        includeScore: true
+      };
+      
+      this.fuse = new Fuse(this.allCards, options);
+    }
   }
 }
 

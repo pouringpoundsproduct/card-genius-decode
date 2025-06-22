@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, Filter, SlidersHorizontal } from 'lucide-react';
@@ -22,7 +21,8 @@ const Search = () => {
     // Load banks and tags first, then search
     const initializeData = async () => {
       await loadBanksAndTags();
-      searchCards(searchQuery, selectedTags, selectedBank, 1);
+      const bankIds = selectedBank ? [selectedBank] : [];
+      searchCards(searchQuery, selectedTags, bankIds, false);
     };
     
     initializeData();
@@ -31,7 +31,8 @@ const Search = () => {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     updateURL(query, selectedTags, selectedBank);
-    searchCards(query, selectedTags, selectedBank, 1);
+    const bankIds = selectedBank ? [selectedBank] : [];
+    searchCards(query, selectedTags, bankIds, false);
   };
 
   const handleTagSelect = (tag: string) => {
@@ -41,13 +42,15 @@ const Search = () => {
     
     setSelectedTags(newTags);
     updateURL(searchQuery, newTags, selectedBank);
-    searchCards(searchQuery, newTags, selectedBank, 1);
+    const bankIds = selectedBank ? [selectedBank] : [];
+    searchCards(searchQuery, newTags, bankIds, false);
   };
 
   const handleBankSelect = (bank: string) => {
     setSelectedBank(bank);
     updateURL(searchQuery, selectedTags, bank);
-    searchCards(searchQuery, selectedTags, bank, 1);
+    const bankIds = bank ? [bank] : [];
+    searchCards(searchQuery, selectedTags, bankIds, false);
   };
 
   const updateURL = (query: string, tagsList: string[], bank: string) => {
@@ -63,7 +66,7 @@ const Search = () => {
     setSelectedTags([]);
     setSelectedBank('');
     setSearchParams({});
-    searchCards('', [], '', 1);
+    searchCards('', [], [], false);
   };
 
   return (
