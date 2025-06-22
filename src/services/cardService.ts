@@ -524,7 +524,7 @@ class CardService {
       reward_rate: apiCard.reward_rate,
       lounge_access: this.hasLoungeAccess(apiCard),
       eligibility: Array.isArray(apiCard.eligibility) ? apiCard.eligibility : this.extractEligibility(apiCard),
-      relevanceScore: 0 // Default relevance score
+      relevanceScore: 0 // Ensure relevanceScore is always present
     };
   }
 

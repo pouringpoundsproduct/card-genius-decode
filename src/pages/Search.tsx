@@ -20,6 +20,7 @@ const Search = () => {
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>(
     searchParams.get('banks')?.split(',').filter(Boolean) || []
   );
+  // Fix boolean conversion
   const [showFreeCards, setShowFreeCards] = useState<boolean>(
     searchParams.get('free') === 'true'
   );
