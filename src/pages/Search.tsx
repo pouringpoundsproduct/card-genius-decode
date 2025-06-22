@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ArrowLeft, Filter, SlidersHorizontal } from 'lucide-react';
 import { SearchBar } from '../components/SearchBar';
 import { CardGrid } from '../components/CardGrid';
 import { TagFilters } from '../components/TagFilters';
+import { BankSelector } from '../components/BankSelector';
 import { useCardData } from '../hooks/useCardData';
 
 const Search = () => {
@@ -12,17 +14,19 @@ const Search = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>(
     searchParams.get('tags')?.split(',').filter(Boolean) || []
   );
-  const [selectedBank, setSelectedBank] = useState(searchParams.get('bank') || '');
+  const [selectedBankIds, setSelectedBankIds] = useState<string[]>(
+    searchParams.get('banks')?.split(',').filter(Boolean) || []
+  );
+  const [showFreeCards, setShowFreeCards] = useState(searchParams.get('free') === 'true');
   const [showFilters, setShowFilters] = useState(false);
   
   const { cards, loading, error, banks, tags, searchCards, loadBanksAndTags } = useCardData();
 
   useEffect(() => {
-    // Load banks and tags first, then search
     const initializeData = async () => {
+      console.log('Initializing search page...');
       await loadBanksAndTags();
-      const bankIds = selectedBank ? [selectedBank] : [];
-      searchCards(searchQuery, selectedTags, bankIds, false);
+      searchCards(searchQuery, selectedTags, selectedBankIds, showFreeCards);
     };
     
     initializeData();
@@ -30,44 +34,56 @@ const Search = () => {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    updateURL(query, selectedTags, selectedBank);
-    const bankIds = selectedBank ? [selectedBank] : [];
-    searchCards(query, selectedTags, bankIds, false);
+    updateURL(query, selectedTags, selectedBankIds, showFreeCards);
+    searchCards(query, selectedTags, selectedBankIds, showFreeCards);
   };
 
-  const handleTagSelect = (tag: string) => {
-    const newTags = selectedTags.includes(tag) 
-      ? selectedTags.filter(t => t !== tag)
-      : [...selectedTags, tag];
+  const handleTagSelect = (tagSlug: string) => {
+    const newTags = selectedTags.includes(tagSlug) 
+      ? selectedTags.filter(t => t !== tagSlug)
+      : [...selectedTags, tagSlug];
     
     setSelectedTags(newTags);
-    updateURL(searchQuery, newTags, selectedBank);
-    const bankIds = selectedBank ? [selectedBank] : [];
-    searchCards(searchQuery, newTags, bankIds, false);
+    updateURL(searchQuery, newTags, selectedBankIds, showFreeCards);
+    searchCards(searchQuery, newTags, selectedBankIds, showFreeCards);
   };
 
-  const handleBankSelect = (bank: string) => {
-    setSelectedBank(bank);
-    updateURL(searchQuery, selectedTags, bank);
-    const bankIds = bank ? [bank] : [];
-    searchCards(searchQuery, selectedTags, bankIds, false);
+  const handleBankSelect = (bankId: string) => {
+    const newBankIds = selectedBankIds.includes(bankId)
+      ? selectedBankIds.filter(id => id !== bankId)
+      : [...selectedBankIds, bankId];
+    
+    setSelectedBankIds(newBankIds);
+    updateURL(searchQuery, selectedTags, newBankIds, showFreeCards);
+    searchCards(searchQuery, selectedTags, newBankIds, showFreeCards);
   };
 
-  const updateURL = (query: string, tagsList: string[], bank: string) => {
+  const handleFreeCardsToggle = () => {
+    const newShowFreeCards = !showFreeCards;
+    setShowFreeCards(newShowFreeCards);
+    updateURL(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
+    searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
+  };
+
+  const updateURL = (query: string, tagsList: string[], bankIds: string[], freeCards: boolean) => {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     if (tagsList.length > 0) params.set('tags', tagsList.join(','));
-    if (bank) params.set('bank', bank);
+    if (bankIds.length > 0) params.set('banks', bankIds.join(','));
+    if (freeCards) params.set('free', 'true');
     setSearchParams(params);
   };
 
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedTags([]);
-    setSelectedBank('');
+    setSelectedBankIds([]);
+    setShowFreeCards(false);
     setSearchParams({});
     searchCards('', [], [], false);
   };
+
+  const hasActiveFilters = searchQuery || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -112,7 +128,7 @@ const Search = () => {
             <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">Filters</h3>
-                {(searchQuery || selectedTags.length > 0 || selectedBank) && (
+                {hasActiveFilters && (
                   <button
                     onClick={clearFilters}
                     className="text-purple-400 hover:text-purple-300 text-sm font-medium"
@@ -121,11 +137,36 @@ const Search = () => {
                   </button>
                 )}
               </div>
+              
+              {/* Free Cards Toggle */}
+              <div className="mb-6">
+                <button
+                  onClick={handleFreeCardsToggle}
+                  className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all border ${
+                    showFreeCards
+                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                      : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
+                  }`}
+                >
+                  {showFreeCards ? '✓ ' : ''}Free Cards Only
+                </button>
+              </div>
+              
               <TagFilters 
                 selectedTags={selectedTags}
                 onTagSelect={handleTagSelect}
                 availableTags={tags}
               />
+              
+              {banks.length > 0 && (
+                <div className="mt-6">
+                  <BankSelector
+                    selectedBankIds={selectedBankIds}
+                    onBankSelect={handleBankSelect}
+                    availableBanks={banks}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -140,7 +181,7 @@ const Search = () => {
                     <Filter className="h-5 w-5 text-purple-400" />
                     Filters
                   </h3>
-                  {(searchQuery || selectedTags.length > 0 || selectedBank) && (
+                  {hasActiveFilters && (
                     <button
                       onClick={clearFilters}
                       className="text-purple-400 hover:text-purple-300 text-sm font-medium"
@@ -148,6 +189,21 @@ const Search = () => {
                       Clear all
                     </button>
                   )}
+                </div>
+                
+                {/* Free Cards Toggle */}
+                <div className="mb-8">
+                  <h4 className="text-sm font-medium text-gray-300 mb-3">Card Type</h4>
+                  <button
+                    onClick={handleFreeCardsToggle}
+                    className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all border ${
+                      showFreeCards
+                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                        : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {showFreeCards ? '✓ ' : ''}Free Cards Only
+                  </button>
                 </div>
                 
                 {/* Tag Filters */}
@@ -162,34 +218,11 @@ const Search = () => {
 
                 {/* Bank Filters */}
                 {banks.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-300 mb-4">Banks</h4>
-                    <div className="space-y-2 max-h-64 overflow-y-auto">
-                      <button
-                        onClick={() => handleBankSelect('')}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                          !selectedBank
-                            ? 'bg-purple-500/20 text-purple-400'
-                            : 'text-gray-300 hover:bg-gray-800/50'
-                        }`}
-                      >
-                        All Banks
-                      </button>
-                      {banks.map((bank) => (
-                        <button
-                          key={bank.id}
-                          onClick={() => handleBankSelect(bank.name)}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                            selectedBank === bank.name
-                              ? 'bg-purple-500/20 text-purple-400'
-                              : 'text-gray-300 hover:bg-gray-800/50'
-                          }`}
-                        >
-                          {bank.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <BankSelector
+                    selectedBankIds={selectedBankIds}
+                    onBankSelect={handleBankSelect}
+                    availableBanks={banks}
+                  />
                 )}
               </div>
             </div>
@@ -201,15 +234,17 @@ const Search = () => {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="text-2xl font-bold text-white">
-                  {searchQuery || selectedTags.length > 0 || selectedBank ? 'Search Results' : 'All Credit Cards'}
+                  {hasActiveFilters ? 'Search Results' : 'All Credit Cards'}
                 </h2>
-                {(searchQuery || selectedTags.length > 0 || selectedBank) && (
+                {hasActiveFilters && (
                   <p className="text-gray-400 mt-1">
-                    {searchQuery && `for "${searchQuery}"`}
-                    {searchQuery && (selectedTags.length > 0 || selectedBank) && ' • '}
-                    {selectedBank && `${selectedBank}`}
-                    {selectedBank && selectedTags.length > 0 && ' • '}
-                    {selectedTags.length > 0 && `${selectedTags.length} filters applied`}
+                    {searchQuery && `"${searchQuery}"`}
+                    {searchQuery && (selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards) && ' • '}
+                    {selectedBankIds.length > 0 && `${selectedBankIds.length} banks`}
+                    {selectedBankIds.length > 0 && (selectedTags.length > 0 || showFreeCards) && ' • '}
+                    {selectedTags.length > 0 && `${selectedTags.length} categories`}
+                    {selectedTags.length > 0 && showFreeCards && ' • '}
+                    {showFreeCards && 'Free cards only'}
                   </p>
                 )}
               </div>
@@ -219,29 +254,45 @@ const Search = () => {
             </div>
 
             {/* Active Filters Display */}
-            {(selectedTags.length > 0 || selectedBank) && (
+            {hasActiveFilters && (
               <div className="mb-6">
                 <p className="text-sm text-gray-400 mb-2">Active filters:</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedBank && (
+                  {showFreeCards && (
                     <button
-                      onClick={() => handleBankSelect('')}
-                      className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-sm font-medium hover:bg-purple-500/30 transition-colors"
+                      onClick={handleFreeCardsToggle}
+                      className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-sm font-medium hover:bg-green-500/30 transition-colors"
                     >
-                      {selectedBank}
-                      <span className="text-purple-300">×</span>
+                      Free Cards
+                      <span className="text-green-300">×</span>
                     </button>
                   )}
-                  {selectedTags.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => handleTagSelect(tag)}
-                      className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-sm font-medium hover:bg-purple-500/30 transition-colors"
-                    >
-                      {tag.replace('-', ' ').toUpperCase()}
-                      <span className="text-purple-300">×</span>
-                    </button>
-                  ))}
+                  {selectedBankIds.map((bankId) => {
+                    const bank = banks.find(b => b.id === bankId);
+                    return bank ? (
+                      <button
+                        key={bankId}
+                        onClick={() => handleBankSelect(bankId)}
+                        className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-sm font-medium hover:bg-blue-500/30 transition-colors"
+                      >
+                        {bank.name}
+                        <span className="text-blue-300">×</span>
+                      </button>
+                    ) : null;
+                  })}
+                  {selectedTags.map((tag) => {
+                    const tagData = tags.find(t => (t.slug || t.id) === tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => handleTagSelect(tag)}
+                        className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-sm font-medium hover:bg-purple-500/30 transition-colors"
+                      >
+                        {tagData?.name || tag.replace('-', ' ').toUpperCase()}
+                        <span className="text-purple-300">×</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

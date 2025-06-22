@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Gift, Plane, Fuel, Star, CreditCard, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Gift, Star, CreditCard, ExternalLink, Shield, Percent, Calendar, Users } from 'lucide-react';
 import { useCardData } from '../hooks/useCardData';
 import { CreditCard as CreditCardType } from '../types/card';
 
@@ -13,7 +13,9 @@ const CardDetail = () => {
   useEffect(() => {
     const loadCard = async () => {
       if (slug) {
+        console.log('Loading card details for:', slug);
         const cardData = await getCardDetails(slug);
+        console.log('Card data received:', cardData);
         setCard(cardData);
       }
     };
@@ -101,13 +103,19 @@ const CardDetail = () => {
                 {/* Fee Structure */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-gray-800/30 rounded-lg p-4">
-                    <p className="text-gray-400 text-sm">Joining Fee</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Calendar className="h-4 w-4 text-gray-400" />
+                      <p className="text-gray-400 text-sm">Joining Fee</p>
+                    </div>
                     <p className="text-white font-bold text-lg">
                       {card.joining_fee === 0 || card.joining_fee === '0' ? 'FREE' : `₹${card.joining_fee}`}
                     </p>
                   </div>
                   <div className="bg-gray-800/30 rounded-lg p-4">
-                    <p className="text-gray-400 text-sm">Annual Fee</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Percent className="h-4 w-4 text-gray-400" />
+                      <p className="text-gray-400 text-sm">Annual Fee</p>
+                    </div>
                     <p className="text-white font-bold text-lg">
                       {card.annual_fee === 0 || card.annual_fee === '0' ? 'FREE' : `₹${card.annual_fee}`}
                     </p>
@@ -120,10 +128,10 @@ const CardDetail = () => {
                     {card.tags.map((tag, index) => (
                       <span 
                         key={index}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium"
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium border border-purple-500/30"
                       >
                         <Star className="h-3 w-3" />
-                        {tag.replace('-', ' ').toUpperCase()}
+                        {typeof tag === 'string' ? tag.replace('-', ' ').toUpperCase() : String(tag)}
                       </span>
                     ))}
                   </div>
@@ -157,15 +165,36 @@ const CardDetail = () => {
           </div>
         )}
 
-        {/* Features */}
+        {/* Key Features */}
         {card.features && card.features.length > 0 && (
           <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-12">
-            <h2 className="text-2xl font-bold mb-6">Key Features</h2>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Star className="h-6 w-6 text-purple-400" />
+              Key Features
+            </h2>
             <div className="grid gap-4">
               {card.features.map((feature, index) => (
-                <div key={index} className="flex items-start gap-3 p-4 bg-gray-800/30 rounded-lg">
+                <div key={index} className="flex items-start gap-3 p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
                   <Star className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-gray-200">{feature}</p>
+                  <p className="text-gray-200 leading-relaxed">{feature}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Eligibility Criteria */}
+        {card.eligibility && card.eligibility.length > 0 && (
+          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Users className="h-6 w-6 text-green-400" />
+              Eligibility Criteria
+            </h2>
+            <div className="grid gap-3">
+              {card.eligibility.map((criteria, index) => (
+                <div key={index} className="flex items-center gap-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <Shield className="h-4 w-4 text-green-400 flex-shrink-0" />
+                  <p className="text-gray-200">{criteria}</p>
                 </div>
               ))}
             </div>
@@ -178,10 +207,34 @@ const CardDetail = () => {
             <h2 className="text-2xl font-bold mb-6">Additional Information</h2>
             <div className="space-y-4">
               {card.other_info.map((info, index) => (
-                <div key={index} className="p-4 bg-gray-800/30 rounded-lg">
-                  <p className="text-gray-200">{info}</p>
+                <div key={index} className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
+                  <p className="text-gray-200 leading-relaxed">{info}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Reward Information */}
+        {(card.cashback_rate || card.reward_rate) && (
+          <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-8 mb-12">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Percent className="h-6 w-6 text-blue-400" />
+              Reward Structure
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              {card.cashback_rate && (
+                <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
+                  <h3 className="font-semibold text-blue-400 mb-2">Cashback Rate</h3>
+                  <p className="text-gray-200">{card.cashback_rate}</p>
+                </div>
+              )}
+              {card.reward_rate && (
+                <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/20">
+                  <h3 className="font-semibold text-purple-400 mb-2">Reward Rate</h3>
+                  <p className="text-gray-200">{card.reward_rate}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -190,7 +243,7 @@ const CardDetail = () => {
         <div className="text-center bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8">
           <h3 className="text-2xl font-bold mb-4">Ready to unlock your card's potential?</h3>
           <p className="text-gray-300 mb-6">Join thousands who've discovered their perfect credit card match.</p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
             {card.apply_url && (
               <a
                 href={card.apply_url}

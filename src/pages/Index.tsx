@@ -15,9 +15,8 @@ const Index = () => {
   const { cards, loading, error, banks, tags, initialized, searchCards, loadBanksAndTags, loadAllCards } = useCardData();
 
   useEffect(() => {
-    // Load initial data
     const initializeData = async () => {
-      console.log('Initializing data...');
+      console.log('Initializing home page data...');
       await loadBanksAndTags();
       await loadAllCards();
     };
@@ -117,10 +116,10 @@ const Index = () => {
               {/* Free Cards Toggle */}
               <button
                 onClick={handleFreeCardsToggle}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
                   showFreeCards
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                    : 'bg-gray-800/50 text-gray-300 border border-gray-700/50 hover:bg-gray-700/50'
+                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                    : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
                 }`}
               >
                 Free Cards Only
@@ -134,10 +133,10 @@ const Index = () => {
                     <button
                       key={bank.id}
                       onClick={() => handleBankSelect(bank.id)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-all border ${
                         selectedBankIds.includes(bank.id)
-                          ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                          : 'bg-gray-800/50 text-gray-300 border border-gray-700/50 hover:bg-gray-700/50'
+                          ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                          : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
                       }`}
                     >
                       {bank.name}
