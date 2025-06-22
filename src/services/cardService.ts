@@ -190,7 +190,10 @@ class CardService {
       // Merge results, avoiding duplicates
       keywordResults.forEach(card => {
         if (!searchResults.some(c => c.id === card.id)) {
-          searchResults.push(card);
+          searchResults.push({
+            ...card,
+            relevanceScore: card.relevanceScore || 0
+          });
         }
       });
     }
