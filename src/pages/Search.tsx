@@ -8,6 +8,7 @@ import { SearchFilters } from '../components/SearchFilters';
 import { SearchResultsHeader } from '../components/SearchResultsHeader';
 import { SearchFilterSidebar } from '../components/SearchFilterSidebar';
 import { ActiveFiltersDisplay } from '../components/ActiveFiltersDisplay';
+import { QuickFilters } from '../components/QuickFilters';
 import { useCardData } from '../hooks/useCardData';
 
 const Search = () => {
@@ -19,7 +20,9 @@ const Search = () => {
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>(
     searchParams.get('banks')?.split(',').filter(Boolean) || []
   );
-  const [showFreeCards, setShowFreeCards] = useState(searchParams.get('free') === 'true');
+  const [showFreeCards, setShowFreeCards] = useState<boolean>(
+    searchParams.get('free') === 'true'
+  );
   const [showFilters, setShowFilters] = useState(false);
   
   const { cards, loading, error, banks, tags, searchCards, loadBanksAndTags } = useCardData();
@@ -66,6 +69,25 @@ const Search = () => {
     setShowFreeCards(newShowFreeCards);
     updateURL(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
     await searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
+  };
+
+  const handleQuickFilter = async (filterType: string, value: any) => {
+    switch (filterType) {
+      case 'ltf':
+        const newShowFreeCards = !showFreeCards;
+        setShowFreeCards(newShowFreeCards);
+        updateURL(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
+        await searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
+        break;
+      case 'bank':
+        await handleBankSelect(value);
+        break;
+      case 'category':
+        await handleTagSelect(value);
+        break;
+      default:
+        break;
+    }
   };
 
   const updateURL = (query: string, tagsList: string[], bankIds: string[], freeCards: boolean) => {
@@ -131,6 +153,16 @@ const Search = () => {
               debounceMs={500}
             />
           </div>
+
+          {/* Quick Filters */}
+          <QuickFilters
+            showFreeCards={showFreeCards}
+            selectedBankIds={selectedBankIds}
+            selectedTags={selectedTags}
+            banks={banks}
+            tags={tags}
+            onQuickFilter={handleQuickFilter}
+          />
           
           {/* Mobile Filters */}
           <SearchFilters

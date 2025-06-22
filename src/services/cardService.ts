@@ -1,4 +1,3 @@
-
 import { CreditCard, ApiResponse } from '../types/card';
 import Fuse from 'fuse.js';
 
@@ -174,20 +173,18 @@ class CardService {
       if (response?.data?.cards) {
         let cards = this.transformCards(response.data.cards);
         
+        // Enhanced client-side search by name and nickname
+        if (normalizedQuery && cards.length > 0) {
+          cards = this.enhancedNameSearch(cards, normalizedQuery);
+        }
+        
         // Client-side filtering for tags if needed
         if (tagSlugs.length > 0) {
           cards = this.filterByTags(cards, tagSlugs);
         }
         
-        // Client-side search enhancement using Fuse.js
-        if (normalizedQuery && cards.length > 0) {
-          this.initializeFuse(cards);
-          if (this.fuse) {
-            const searchResults = this.fuse.search(normalizedQuery);
-            const fuzzyCards = searchResults.map(result => result.item);
-            cards = fuzzyCards.length > 0 ? fuzzyCards : cards;
-          }
-        }
+        // Calculate and sort by relevance scores
+        cards = this.calculateRelevanceScores(cards, normalizedQuery, tagSlugs, bankIds, freeCards);
         
         console.log('Search results:', cards.length, 'cards found');
         return cards;
@@ -198,6 +195,86 @@ class CardService {
       console.error('Error in searchCards:', error);
       return [];
     }
+  }
+
+  private enhancedNameSearch(cards: CreditCard[], query: string): CreditCard[] {
+    if (!query) return cards;
+    
+    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
+    
+    return cards.filter(card => {
+      const cardName = (card.name || '').toLowerCase();
+      const cardNickname = (card.nick_name || '').toLowerCase();
+      const bankName = (card.bank_name || '').toLowerCase();
+      
+      // Check if all search terms are found in name, nickname, or bank name
+      return searchTerms.every(term => 
+        cardName.includes(term) || 
+        cardNickname.includes(term) || 
+        bankName.includes(term)
+      );
+    });
+  }
+
+  private calculateRelevanceScores(
+    cards: CreditCard[], 
+    query: string, 
+    tagSlugs: string[], 
+    bankIds: string[], 
+    freeCards: boolean
+  ): CreditCard[] {
+    return cards.map(card => {
+      let score = 0;
+      
+      // Name matching score
+      if (query) {
+        const cardName = (card.name || '').toLowerCase();
+        const cardNickname = (card.nick_name || '').toLowerCase();
+        const queryLower = query.toLowerCase();
+        
+        if (cardName.includes(queryLower)) score += 10;
+        if (cardNickname.includes(queryLower)) score += 8;
+        if (cardName.startsWith(queryLower)) score += 5;
+        if (cardNickname.startsWith(queryLower)) score += 3;
+      }
+      
+      // Tag matching score
+      if (tagSlugs.length > 0 && card.tags) {
+        const matchingTags = tagSlugs.filter(slug => 
+          card.tags?.some(tag => this.normalizeTag(tag) === slug)
+        );
+        score += matchingTags.length * 3;
+      }
+      
+      // Bank matching score
+      if (bankIds.length > 0) {
+        const cardBankId = this.extractBankId(card);
+        if (cardBankId && bankIds.includes(cardBankId)) {
+          score += 5;
+        }
+      }
+      
+      // Free card preference
+      if (freeCards) {
+        const isLTF = this.normalizeFeess(card.joining_fee) === 0 || 
+                     this.normalizeFeess(card.annual_fee) === 0;
+        if (isLTF) score += 2;
+      }
+      
+      return { ...card, relevanceScore: score };
+    }).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+  }
+
+  private extractBankId(card: CreditCard): string | null {
+    // Try to extract bank ID from card data
+    if (card.bank_id) return card.bank_id.toString();
+    
+    // Fallback: match bank name to bank list
+    const matchingBank = this.banks.find(bank => 
+      bank.name.toLowerCase() === card.bank_name?.toLowerCase()
+    );
+    
+    return matchingBank ? matchingBank.id : null;
   }
 
   async getAllCards(): Promise<CreditCard[]> {
@@ -287,11 +364,13 @@ class CardService {
     const cardText = `${card.name} ${card.features?.join(' ')} ${card.other_info?.join(' ')}`.toLowerCase();
     
     const tagKeywords: { [key: string]: string[] } = {
-      'best-fuel-credit-card': ['fuel', 'petrol', 'diesel', 'gas station'],
-      'best-shopping-credit-card': ['shopping', 'retail', 'e-commerce', 'online shopping'],
+      'best-fuel-credit-card': ['fuel', 'petrol', 'diesel', 'gas station', 'hpcl', 'bpcl', 'iocl'],
+      'best-shopping-credit-card': ['shopping', 'retail', 'e-commerce', 'online shopping', 'cashback'],
       'A-b-c-d': ['lounge', 'airport', 'priority pass'],
-      'best-travel-credit-card': ['travel', 'miles', 'airline', 'hotel'],
+      'best-travel-credit-card': ['travel', 'miles', 'airline', 'hotel', 'air miles'],
       'best-dining-credit-card': ['dining', 'restaurant', 'food', 'zomato', 'swiggy'],
+      'BestCardsforGroceryShopping': ['grocery', 'supermarket', 'big bazaar', 'dmart'],
+      'best-utility-credit-card': ['utility', 'bill payment', 'electricity', 'mobile recharge']
     };
     
     const keywords = tagKeywords[slug] || [];
@@ -304,9 +383,11 @@ class CardService {
     return {
       id: apiCard.id?.toString() || apiCard.seo_card_alias || 'unknown',
       name: apiCard.name || 'Unknown Card',
+      nick_name: apiCard.nick_name || apiCard.name || 'Unknown Card',
       slug: apiCard.seo_card_alias || apiCard.card_alias || this.generateSlug(apiCard.name || ''),
       image: apiCard.image,
       bank_name: apiCard.banks?.name || apiCard.bank_name || 'Unknown Bank',
+      bank_id: apiCard.bank_id,
       joining_fee: this.normalizeFeess(apiCard.joining_fee_text || apiCard.joining_fee),
       annual_fee: this.normalizeFeess(apiCard.annual_fee_text || apiCard.annual_fee),
       welcome_offer: this.extractWelcomeOffer(apiCard),
@@ -325,9 +406,11 @@ class CardService {
     return {
       id: apiCard.id?.toString() || apiCard.slug || 'unknown',
       name: apiCard.name || 'Unknown Card',
+      nick_name: apiCard.nick_name || apiCard.name || 'Unknown Card',
       slug: apiCard.slug || apiCard.seo_card_alias || this.generateSlug(apiCard.name || ''),
       image: apiCard.image,
       bank_name: apiCard.bank_name || 'Unknown Bank',
+      bank_id: apiCard.bank_id,
       joining_fee: this.normalizeFeess(apiCard.joining_fee),
       annual_fee: this.normalizeFeess(apiCard.annual_fee),
       welcome_offer: apiCard.welcome_offer || this.extractWelcomeOffer(apiCard),
