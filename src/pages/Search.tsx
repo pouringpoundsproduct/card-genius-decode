@@ -74,10 +74,7 @@ const Search = () => {
   const handleQuickFilter = async (filterType: string, value: any) => {
     switch (filterType) {
       case 'ltf':
-        const newShowFreeCards = !showFreeCards;
-        setShowFreeCards(newShowFreeCards);
-        updateURL(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
-        await searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
+        await handleFreeCardsToggle();
         break;
       case 'bank':
         await handleBankSelect(value);
