@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 
 interface SearchBarProps {
@@ -25,27 +25,22 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     setLocalValue(value);
   }, [value]);
 
-  // Debounced search function
-  const debouncedOnChange = useCallback(
-    (searchValue: string) => {
-      const timeoutId = setTimeout(() => {
-        console.log('Search triggered for:', searchValue);
-        onChange(searchValue);
-        setIsLoading(false);
-      }, debounceMs);
-
-      return () => clearTimeout(timeoutId);
-    },
-    [onChange, debounceMs]
-  );
-
+  // Debounced search effect
   useEffect(() => {
     if (localValue !== value) {
       setIsLoading(true);
-      const cleanup = debouncedOnChange(localValue);
-      return cleanup;
+      const timeoutId = setTimeout(() => {
+        console.log('Search triggered for:', localValue);
+        onChange(localValue);
+        setIsLoading(false);
+      }, debounceMs);
+
+      return () => {
+        clearTimeout(timeoutId);
+        setIsLoading(false);
+      };
     }
-  }, [localValue, value, debouncedOnChange]);
+  }, [localValue, value, onChange, debounceMs]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -64,6 +59,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       // Immediately trigger search on Enter
+      console.log('Enter pressed, triggering immediate search');
       onChange(localValue);
       setIsLoading(false);
     }
@@ -101,7 +97,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
       
       {/* Search hints */}
       {localValue.length > 0 && localValue.length < 3 && (
-        <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-gray-800/90 backdrop-blur-sm rounded-lg border border-gray-700/50 text-sm text-gray-400">
+        <div className="absolute top-full left-0 right-0 mt-1 p-2 bg-gray-800/90 backdrop-blur-sm rounded-lg border border-gray-700/50 text-sm text-gray-400 z-10">
           Type at least 3 characters to search...
         </div>
       )}

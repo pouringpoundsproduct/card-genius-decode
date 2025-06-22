@@ -20,22 +20,31 @@ const Index = () => {
   const [totalCards, setTotalCards] = useState(0);
   const [hasMoreCards, setHasMoreCards] = useState(false);
   
-  const { cards, loading, error, banks, tags, initialized, searchCards, loadBanksAndTags, loadAllCards } = useCardData();
+  const { cards, loading, error, banks, tags, initialized, searchCards, loadBanksAndTags, loadAllCards, loadFeaturedCards } = useCardData();
 
   useEffect(() => {
     const initializeData = async () => {
       console.log('Initializing home page data...');
-      await loadBanksAndTags();
-      await loadAllCards();
+      try {
+        await loadBanksAndTags();
+        // Load featured cards by default
+        await loadFeaturedCards();
+      } catch (err) {
+        console.error('Error initializing data:', err);
+      }
     };
     
     initializeData();
-  }, [loadBanksAndTags, loadAllCards]);
+  }, [loadBanksAndTags, loadFeaturedCards]);
 
   const handleSearch = async (query: string) => {
+    console.log('Handling search for:', query);
     setSearchQuery(query);
-    if (query.trim()) {
+    if (query.trim() || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards) {
       await searchCards(query, selectedTags, selectedBankIds, showFreeCards);
+    } else {
+      // If no filters, show featured cards
+      await loadFeaturedCards();
     }
   };
 
@@ -64,6 +73,7 @@ const Index = () => {
   };
 
   const handleExploreAllCards = async () => {
+    console.log('Exploring all cards...');
     setShowAllCards(true);
     setCurrentPage(1);
     try {
@@ -205,7 +215,7 @@ const Index = () => {
               <h3 className="text-lg font-semibold text-red-400 mb-2">Unable to Load Cards</h3>
               <p className="text-gray-300 mb-4">{error}</p>
               <button 
-                onClick={() => loadAllCards()}
+                onClick={() => loadFeaturedCards()}
                 className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
               >
                 Try Again
@@ -246,7 +256,10 @@ const Index = () => {
                   </span>
                 </h3>
                 <button
-                  onClick={() => setShowAllCards(false)}
+                  onClick={() => {
+                    setShowAllCards(false);
+                    loadFeaturedCards();
+                  }}
                   className="text-purple-400 hover:text-purple-300 transition-colors"
                 >
                   Back to Featured
@@ -286,13 +299,13 @@ const Index = () => {
               <FeaturedCards cards={cards} loading={loading} />
               
               {/* Explore All Cards Button */}
-              {cards.length > 0 && (
+              {!loading && cards.length > 0 && (
                 <div className="text-center mt-12">
                   <button
                     onClick={handleExploreAllCards}
                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2"
                   >
-                    Explore All {totalCards || 53} Cards
+                    Explore All Cards
                     <ArrowRight className="h-5 w-5" />
                   </button>
                 </div>

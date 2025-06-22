@@ -24,7 +24,7 @@ export const useCardData = () => {
     try {
       const result = await cardService.searchCards(query, selectedTags, selectedBankIds, freeCards);
       console.log('Search results:', result);
-      setCards(result);
+      setCards(Array.isArray(result) ? result : []);
       setInitialized(true);
     } catch (err) {
       console.error('Error fetching cards:', err);
@@ -57,11 +57,12 @@ export const useCardData = () => {
       const { banks: banksList, tags: tagsList } = await cardService.getBanksAndTags();
       console.log('Loaded banks:', banksList);
       console.log('Loaded tags:', tagsList);
-      setBanks(banksList);
-      setTags(tagsList);
+      setBanks(Array.isArray(banksList) ? banksList : []);
+      setTags(Array.isArray(tagsList) ? tagsList : []);
     } catch (err) {
       console.error('Error loading banks and tags:', err);
-      // Fallback data is handled in the service
+      setBanks([]);
+      setTags([]);
     }
   }, []);
 
@@ -73,9 +74,13 @@ export const useCardData = () => {
       console.log('Loading all cards...', { page, limit });
       const result = await cardService.getAllCards(page, limit);
       console.log('All cards loaded:', result.cards.length, 'cards');
-      setCards(result.cards);
+      setCards(Array.isArray(result.cards) ? result.cards : []);
       setInitialized(true);
-      return result;
+      return {
+        cards: result.cards,
+        hasMore: result.hasMore,
+        total: result.total
+      };
     } catch (err) {
       console.error('Error loading all cards:', err);
       setError('Unable to load cards. Please check your connection and try again.');
@@ -93,11 +98,12 @@ export const useCardData = () => {
       console.log('Loading featured cards...');
       const featuredCards = await cardService.getFeaturedCards();
       console.log('Featured cards loaded:', featuredCards.length, 'cards');
-      setCards(featuredCards);
+      setCards(Array.isArray(featuredCards) ? featuredCards : []);
       setInitialized(true);
     } catch (err) {
       console.error('Error loading featured cards:', err);
       setError('Unable to load featured cards. Please try again.');
+      setCards([]);
     } finally {
       setLoading(false);
     }

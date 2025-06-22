@@ -30,22 +30,33 @@ export const ComparisonProvider: React.FC<ComparisonProviderProps> = ({ children
   const maxCards = 3;
 
   const addToComparison = (card: CreditCard) => {
+    console.log('Adding card to comparison:', card.name);
     setComparisonCards(prev => {
       if (prev.length >= maxCards) {
+        console.log('Maximum cards reached');
         return prev;
       }
       if (prev.some(c => c.id === card.id)) {
+        console.log('Card already in comparison');
         return prev;
       }
-      return [...prev, card];
+      const newCards = [...prev, card];
+      console.log('Updated comparison cards:', newCards.length);
+      return newCards;
     });
   };
 
   const removeFromComparison = (cardId: string) => {
-    setComparisonCards(prev => prev.filter(card => card.id !== cardId));
+    console.log('Removing card from comparison:', cardId);
+    setComparisonCards(prev => {
+      const newCards = prev.filter(card => card.id !== cardId);
+      console.log('Updated comparison cards after removal:', newCards.length);
+      return newCards;
+    });
   };
 
   const clearComparison = () => {
+    console.log('Clearing all comparison cards');
     setComparisonCards([]);
   };
 
