@@ -21,7 +21,7 @@ app.use(express.json());
 const API_ENDPOINTS = {
   BANK_TAGS: `${process.env.BANKKARO_API_BASE}/bank-tags`,
   CARDS: `${process.env.BANKKARO_API_BASE}/cards`,
-  CARD_RECOMMENDATION: `${process.env.BANKKARO_API_BASE}/cards`
+  CARD_RECOMMENDATION: process.env.CARD_RECOMMENDATION_API
 };
 
 // Health Check
@@ -72,25 +72,8 @@ app.post('/api/recommend-cards', async (req, res) => {
   try {
     const spendingData = req.body;
     
-    // Build recommendation request based on spending patterns
-    const recommendationPayload = {
-      slug: "",
-      banks_ids: [],
-      card_networks: [],
-      annualFees: spendingData.preferredAnnualFee || "",
-      credit_score: spendingData.creditScore || "",
-      sort_by: "recommended",
-      free_cards: spendingData.preferFreeCards ? "true" : "",
-      eligiblityPayload: {
-        income: spendingData.monthlyIncome,
-        age: spendingData.age
-      },
-      cardGeniusPayload: {
-        spendingCategories: spendingData.categories
-      }
-    };
-    
-    const response = await axios.post(API_ENDPOINTS.CARDS, recommendationPayload, {
+    // Use the new card recommendation API
+    const response = await axios.post(API_ENDPOINTS.CARD_RECOMMENDATION, spendingData, {
       headers: { 'Content-Type': 'application/json' }
     });
     
@@ -152,9 +135,9 @@ async function searchBankKaroKnowledge(query) {
       headers: { 'Content-Type': 'application/json' }
     });
     
-    // Search in cards
-    const cardsResponse = await axios.post(API_ENDPOINTS.CARDS, {
-      slug: "",
+    // Search in cards with enhanced query handling
+    const searchPayload = {
+      slug: generateSlugFromQuery(query),
       banks_ids: [],
       card_networks: [],
       annualFees: "",
@@ -163,13 +146,15 @@ async function searchBankKaroKnowledge(query) {
       free_cards: "",
       eligiblityPayload: {},
       cardGeniusPayload: {}
-    }, {
+    };
+
+    const cardsResponse = await axios.post(API_ENDPOINTS.CARDS, searchPayload, {
       headers: { 'Content-Type': 'application/json' }
     });
     
     // Process and filter results based on query
-    if (cardsResponse.data && cardsResponse.data.length > 0) {
-      return formatBankKaroResponse(cardsResponse.data, query);
+    if (cardsResponse.data && cardsResponse.data.data && cardsResponse.data.data.cards && cardsResponse.data.data.cards.length > 0) {
+      return formatBankKaroResponse(cardsResponse.data.data.cards, query);
     }
     
     return null;
@@ -179,13 +164,22 @@ async function searchBankKaroKnowledge(query) {
   }
 }
 
+function generateSlugFromQuery(query) {
+  // Convert query to potential slug format
+  return query.toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+}
+
 async function getChatGPTResponse(message, context) {
   const completion = await openai.chat.completions.create({
     model: "gpt-4",
     messages: [
       {
         role: "system",
-        content: "You are a helpful credit card expert assistant. Provide accurate, helpful information about credit cards, banking, and financial topics."
+        content: "You are a helpful credit card expert assistant. Provide accurate, helpful information about credit cards, banking, and financial topics. Focus on practical advice and recommendations."
       },
       {
         role: "user",
@@ -200,7 +194,7 @@ async function getChatGPTResponse(message, context) {
 }
 
 function formatBankKaroResponse(cards, query) {
-  // Simple formatting - you can enhance this based on query type
+  // Enhanced formatting based on query type
   const topCards = cards.slice(0, 3);
   let response = "Based on our database, here are some relevant credit cards:\n\n";
   
@@ -208,11 +202,20 @@ function formatBankKaroResponse(cards, query) {
     response += `${index + 1}. **${card.name}** by ${card.bank_name}\n`;
     response += `   - Joining Fee: ${card.joining_fee === 0 ? 'FREE' : '₹' + card.joining_fee}\n`;
     response += `   - Annual Fee: ${card.annual_fee === 0 ? 'FREE' : '₹' + card.annual_fee}\n`;
+    
     if (card.welcome_offer) {
       response += `   - Welcome Offer: ${card.welcome_offer}\n`;
     }
+    
+    // Add key features if available
+    if (card.product_usps && card.product_usps.length > 0) {
+      response += `   - Key Feature: ${card.product_usps[0].header}\n`;
+    }
+    
     response += `\n`;
   });
+  
+  response += "Would you like more details about any of these cards or need recommendations based on your specific spending patterns?";
   
   return response;
 }
@@ -246,14 +249,14 @@ async function generateContent(topic, contentType, userResponses) {
   const prompt = `Create ${contentType} content about ${topic} with the following specifications:
     ${Object.entries(userResponses).map(([key, value]) => `${key}: ${value}`).join('\n')}
     
-    Make it engaging, informative, and tailored to the specified audience.`;
+    Make it engaging, informative, and tailored to the specified audience. Focus on credit card benefits, features, and practical advice.`;
   
   const completion = await openai.chat.completions.create({
     model: "gpt-4",
     messages: [
       {
         role: "system",
-        content: "You are a professional content creator specializing in financial and credit card content."
+        content: "You are a professional content creator specializing in financial and credit card content. Create high-quality, informative content that helps users make better financial decisions."
       },
       {
         role: "user",
@@ -271,4 +274,8 @@ async function generateContent(topic, contentType, userResponses) {
 app.listen(PORT, () => {
   console.log(`Credit+ MCP Server running on http://localhost:${PORT}`);
   console.log(`Health check available at: http://localhost:${PORT}/health`);
+  console.log('API Endpoints configured:');
+  console.log('- Bank Tags:', API_ENDPOINTS.BANK_TAGS);
+  console.log('- Cards:', API_ENDPOINTS.CARDS);
+  console.log('- Card Recommendation:', API_ENDPOINTS.CARD_RECOMMENDATION);
 });
