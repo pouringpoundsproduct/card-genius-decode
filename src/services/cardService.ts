@@ -149,86 +149,82 @@ class CardService {
     return { banks: fallbackBanks, tags: fallbackTags };
   }
 
-  private enhancedSearch(cards: CreditCard[], query: string): CreditCard[] {
-    if (!query || query.trim().length === 0) return cards;
-
-    // Initialize Fuse.js for fuzzy search
+  private initializeFuseSearch(cards: CreditCard[]) {
     const fuseOptions = {
       keys: [
         { name: 'name', weight: 0.4 },
         { name: 'nick_name', weight: 0.3 },
-        { name: 'bank_name', weight: 0.2 },
+        { name: 'bank_name', weight: 0.3 },
         { name: 'features', weight: 0.1 }
       ],
-      threshold: 0.3,
+      threshold: 0.4,
       includeScore: true,
       ignoreLocation: true,
-      findAllMatches: true
+      findAllMatches: true,
+      minMatchCharLength: 2
     };
 
-    const fuse = new Fuse(cards, fuseOptions);
-    const fuseResults = fuse.search(query);
-    
-    // Extract cards from Fuse results and add relevance scores
-    const searchResults = fuseResults.map(result => ({
-      ...result.item,
-      relevanceScore: 1 - (result.score || 0) // Convert Fuse score to relevance score
-    }));
-
-    // If Fuse didn't find enough results, try manual keyword matching
-    if (searchResults.length < 5) {
-      const manualResults = this.keywordSearch(cards, query);
-      const combinedResults = [...searchResults];
-      
-      // Add manual results that aren't already included
-      manualResults.forEach(card => {
-        if (!combinedResults.some(c => c.id === card.id)) {
-          combinedResults.push({ ...card, relevanceScore: card.relevanceScore || 0 });
-        }
-      });
-      
-      return combinedResults;
-    }
-
-    return searchResults;
+    this.fuse = new Fuse(cards, fuseOptions);
   }
 
-  private keywordSearch(cards: CreditCard[], query: string): CreditCard[] {
+  private performFuzzySearch(cards: CreditCard[], query: string): CreditCard[] {
+    if (!query || query.trim().length < 2) return cards;
+
+    // Initialize Fuse if not already done or if cards changed
+    if (!this.fuse || this.allCards.length !== cards.length) {
+      this.initializeFuseSearch(cards);
+    }
+
+    const fuseResults = this.fuse!.search(query);
+    
+    // Convert Fuse results to cards with relevance scores
+    const searchResults = fuseResults.map(result => ({
+      ...result.item,
+      relevanceScore: 1 - (result.score || 0)
+    }));
+
+    // If we have few results, try keyword matching
+    if (searchResults.length < 10) {
+      const keywordResults = this.performKeywordSearch(cards, query);
+      
+      // Merge results, avoiding duplicates
+      keywordResults.forEach(card => {
+        if (!searchResults.some(c => c.id === card.id)) {
+          searchResults.push(card);
+        }
+      });
+    }
+
+    return searchResults.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+  }
+
+  private performKeywordSearch(cards: CreditCard[], query: string): CreditCard[] {
     const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 1);
     
-    return cards.filter(card => {
+    return cards.map(card => {
       const searchableText = `
         ${card.name || ''} 
         ${card.nick_name || ''} 
         ${card.bank_name || ''} 
         ${card.features?.join(' ') || ''}
-        ${card.tags?.join(' ') || ''}
       `.toLowerCase();
       
-      return searchTerms.some(term => searchableText.includes(term));
-    }).map(card => ({
-      ...card,
-      relevanceScore: this.calculateKeywordRelevance(card, searchTerms)
-    }));
-  }
-
-  private calculateKeywordRelevance(card: CreditCard, searchTerms: string[]): number {
-    let score = 0;
-    const cardName = (card.name || '').toLowerCase();
-    const cardNickname = (card.nick_name || '').toLowerCase();
-    const bankName = (card.bank_name || '').toLowerCase();
-    
-    searchTerms.forEach(term => {
-      if (cardName.startsWith(term)) score += 10;
-      else if (cardName.includes(term)) score += 5;
+      let score = 0;
+      const cardName = (card.name || '').toLowerCase();
+      const bankName = (card.bank_name || '').toLowerCase();
       
-      if (cardNickname.startsWith(term)) score += 8;
-      else if (cardNickname.includes(term)) score += 4;
+      searchTerms.forEach(term => {
+        // Exact matches get higher scores
+        if (cardName.includes(term)) score += cardName.startsWith(term) ? 10 : 5;
+        if (bankName.includes(term)) score += bankName.startsWith(term) ? 8 : 4;
+        if (searchableText.includes(term)) score += 2;
+      });
       
-      if (bankName.includes(term)) score += 3;
-    });
-    
-    return score / 100; // Normalize to 0-1 range
+      return {
+        ...card,
+        relevanceScore: score / 100
+      };
+    }).filter(card => (card.relevanceScore || 0) > 0);
   }
 
   async searchCards(
@@ -238,14 +234,14 @@ class CardService {
     freeCards: boolean = false
   ): Promise<CreditCard[]> {
     try {
-      console.log('Enhanced search parameters:', { query, tagSlugs, bankIds, freeCards });
+      console.log('Search parameters:', { query, tagSlugs, bankIds, freeCards });
 
-      const normalizedQuery = this.normalizeSearchQuery(query);
-      const searchSlug = normalizedQuery ? this.generateSlug(normalizedQuery) : '';
+      // Convert bank IDs to integers for API call
+      const bankIdsForApi = bankIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
 
       const requestData = {
-        slug: searchSlug,
-        banks_ids: bankIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)),
+        slug: query ? this.generateSlug(query) : '',
+        banks_ids: bankIdsForApi,
         card_networks: [],
         annualFees: '',
         credit_score: '',
@@ -260,37 +256,47 @@ class CardService {
       
       if (response?.data?.cards) {
         let cards = this.transformCards(response.data.cards);
+        console.log('Raw cards from API:', cards.length);
         
-        // Enhanced search with Fuse.js
-        if (normalizedQuery && cards.length > 0) {
-          cards = this.enhancedSearch(cards, normalizedQuery);
+        // Apply search query filtering using Fuse.js
+        if (query && query.trim().length > 0) {
+          cards = this.performFuzzySearch(cards, query.trim());
+          console.log('After search filtering:', cards.length);
         }
         
-        // Enhanced tag filtering with bank-tag mapping
+        // Apply tag filtering
         if (tagSlugs.length > 0) {
-          cards = this.enhancedTagFilter(cards, tagSlugs);
+          cards = this.filterByTags(cards, tagSlugs);
+          console.log('After tag filtering:', cards.length);
         }
         
-        // Apply bank-specific enhancements
+        // Apply bank filtering (client-side verification)
         if (bankIds.length > 0) {
-          cards = this.enhanceBankCards(cards, bankIds);
+          cards = this.filterByBanks(cards, bankIds);
+          console.log('After bank filtering:', cards.length);
         }
         
-        // Final relevance scoring and sorting
-        cards = this.finalizeRelevanceScores(cards, normalizedQuery, tagSlugs, bankIds, freeCards);
+        // Apply free cards filter
+        if (freeCards) {
+          cards = this.filterFreeCards(cards);
+          console.log('After free cards filtering:', cards.length);
+        }
         
-        console.log('Enhanced search results:', cards.length, 'cards found');
+        // Final sorting by relevance
+        cards = cards.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+        
+        console.log('Final search results:', cards.length, 'cards found');
         return cards.slice(0, 50); // Limit to top 50 results
       }
       
       return [];
     } catch (error) {
-      console.error('Error in enhanced searchCards:', error);
+      console.error('Error in searchCards:', error);
       return [];
     }
   }
 
-  private enhancedTagFilter(cards: CreditCard[], tagSlugs: string[]): CreditCard[] {
+  private filterByTags(cards: CreditCard[], tagSlugs: string[]): CreditCard[] {
     return cards.filter(card => {
       return tagSlugs.some(slug => {
         // Direct tag match
@@ -303,79 +309,19 @@ class CardService {
     });
   }
 
-  private enhanceBankCards(cards: CreditCard[], bankIds: string[]): CreditCard[] {
-    return cards.map(card => {
-      const cardBankId = this.extractBankId(card);
-      if (cardBankId && bankIds.includes(cardBankId)) {
-        // Add bank-specific tags
-        const bankTags = this.bankTagMapping[cardBankId as keyof typeof this.bankTagMapping] || [];
-        const existingTags = card.tags || [];
-        
-        return {
-          ...card,
-          tags: [...new Set([...existingTags, ...bankTags])],
-          relevanceScore: (card.relevanceScore || 0) + 0.2 // Boost bank-matched cards
-        };
-      }
-      return card;
+  private filterByBanks(cards: CreditCard[], bankIds: string[]): CreditCard[] {
+    return cards.filter(card => {
+      const cardBankId = this.extractBankIdFromCard(card);
+      return cardBankId && bankIds.includes(cardBankId);
     });
   }
 
-  private finalizeRelevanceScores(
-    cards: CreditCard[], 
-    query: string, 
-    tagSlugs: string[], 
-    bankIds: string[], 
-    freeCards: boolean
-  ): CreditCard[] {
-    return cards.map(card => {
-      let baseScore = card.relevanceScore || 0;
-      
-      // Name matching boost
-      if (query) {
-        const cardName = (card.name || '').toLowerCase();
-        const cardNickname = (card.nick_name || '').toLowerCase();
-        const queryLower = query.toLowerCase();
-        
-        if (cardName.includes(queryLower)) baseScore += 0.3;
-        if (cardNickname.includes(queryLower)) baseScore += 0.25;
-        if (cardName.startsWith(queryLower)) baseScore += 0.2;
-      }
-      
-      // Tag matching boost
-      if (tagSlugs.length > 0 && card.tags) {
-        const matchingTags = tagSlugs.filter(slug => 
-          card.tags?.some(tag => this.normalizeTag(tag) === slug)
-        );
-        baseScore += matchingTags.length * 0.15;
-      }
-      
-      // Bank matching boost
-      if (bankIds.length > 0) {
-        const cardBankId = this.extractBankId(card);
-        if (cardBankId && bankIds.includes(cardBankId)) {
-          baseScore += 0.25;
-        }
-      }
-      
-      // Free card boost
-      if (freeCards) {
-        const isLTF = this.normalizeFeess(card.joining_fee) === 0 || 
-                     this.normalizeFeess(card.annual_fee) === 0;
-        if (isLTF) baseScore += 0.1;
-      }
-      
-      return { ...card, relevanceScore: baseScore };
-    }).sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
-  }
-
-  private normalizeSearchQuery(query: string): string {
-    return query
-      .toLowerCase()
-      .replace(/-/g, ' ')
-      .replace(/[^\w\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+  private filterFreeCards(cards: CreditCard[]): CreditCard[] {
+    return cards.filter(card => {
+      const joiningFee = this.normalizeFeess(card.joining_fee);
+      const annualFee = this.normalizeFeess(card.annual_fee);
+      return joiningFee === 0 || annualFee === 0;
+    });
   }
 
   private generateSlug(name: string): string {
@@ -387,9 +333,10 @@ class CardService {
       .replace(/^-|-$/g, '');
   }
 
-  private extractBankId(card: CreditCard): string | null {
+  private extractBankIdFromCard(card: CreditCard): string | null {
     if (card.bank_id) return card.bank_id.toString();
     
+    // Try to match by bank name with the banks we have
     const matchingBank = this.banks.find(bank => 
       bank.name.toLowerCase() === (card.bank_name || '').toLowerCase()
     );
@@ -438,7 +385,7 @@ class CardService {
 
   async getCardDetails(slug: string): Promise<CreditCard | null> {
     try {
-      console.log('Fetching enhanced card details for slug:', slug);
+      console.log('Fetching card details for slug:', slug);
       
       const requestData = {
         slug: slug,
@@ -470,40 +417,25 @@ class CardService {
   }
 
   private cardMatchesTagSlug(card: CreditCard, slug: string): boolean {
-    const cardText = `${card.name} ${card.features?.join(' ')} ${card.other_info?.join(' ')}`.toLowerCase();
+    const cardText = `${card.name} ${card.features?.join(' ')} ${card.tags?.join(' ')}`.toLowerCase();
     
     const tagKeywords: { [key: string]: string[] } = {
-      'best-fuel-credit-card': ['fuel', 'petrol', 'diesel', 'gas', 'hpcl', 'bpcl', 'iocl', 'shell', 'reliance'],
-      'best-shopping-credit-card': ['shopping', 'retail', 'e-commerce', 'online shopping', 'cashback', 'amazon', 'flipkart'],
-      'A-b-c-d': ['lounge', 'airport', 'priority pass', 'vip', 'plaza premium'],
-      'best-travel-credit-card': ['travel', 'miles', 'airline', 'hotel', 'air miles', 'makemytrip', 'cleartrip'],
-      'best-dining-credit-card': ['dining', 'restaurant', 'food', 'zomato', 'swiggy', 'uber eats'],
-      'BestCardsforGroceryShopping': ['grocery', 'supermarket', 'big bazaar', 'dmart', 'reliance fresh'],
-      'best-utility-credit-card': ['utility', 'bill payment', 'electricity', 'mobile recharge', 'broadband'],
-      'best-cashback-credit-card': ['cashback', 'cash back', 'rewards', 'points', 'back']
+      'best-fuel-credit-card': ['fuel', 'petrol', 'diesel', 'gas', 'hpcl', 'bpcl', 'iocl'],
+      'best-shopping-credit-card': ['shopping', 'retail', 'e-commerce', 'online', 'amazon', 'flipkart'],
+      'A-b-c-d': ['lounge', 'airport', 'priority pass', 'vip'],
+      'best-travel-credit-card': ['travel', 'miles', 'airline', 'hotel', 'air miles'],
+      'best-dining-credit-card': ['dining', 'restaurant', 'food', 'zomato', 'swiggy'],
+      'BestCardsforGroceryShopping': ['grocery', 'supermarket', 'big bazaar', 'dmart'],
+      'best-utility-credit-card': ['utility', 'bill payment', 'electricity', 'mobile'],
+      'best-cashback-credit-card': ['cashback', 'cash back', 'rewards', 'points']
     };
     
     const keywords = tagKeywords[slug] || [];
     return keywords.some(keyword => cardText.includes(keyword));
   }
 
-  private transformDetailCard(apiCard: any): CreditCard {
-    console.log('Transforming enhanced detailed card:', apiCard);
-    
-    const baseCard = this.transformCard(apiCard);
-    
-    return {
-      ...baseCard,
-      features: this.extractEnhancedFeatures(apiCard),
-      other_info: this.extractEnhancedOtherInfo(apiCard),
-      tags: this.extractEnhancedDetailTags(apiCard),
-      eligibility: this.extractEnhancedEligibility(apiCard)
-    };
-  }
-
   private transformCard(apiCard: any): CreditCard {
-    const bankId = this.extractBankIdFromCard(apiCard);
-    const enhancedTags = this.extractEnhancedTags(apiCard, bankId);
+    const bankId = this.extractBankIdFromApiCard(apiCard);
     
     return {
       id: apiCard.id?.toString() || apiCard.slug || 'unknown',
@@ -517,18 +449,18 @@ class CardService {
       annual_fee: this.normalizeFeess(apiCard.annual_fee),
       welcome_offer: apiCard.welcome_offer || this.extractWelcomeOffer(apiCard),
       apply_url: apiCard.apply_url || apiCard.network_url,
-      tags: enhancedTags,
+      tags: this.extractTags(apiCard, bankId),
       features: Array.isArray(apiCard.features) ? apiCard.features : this.extractFeatures(apiCard),
       other_info: Array.isArray(apiCard.other_info) ? apiCard.other_info : [],
       cashback_rate: apiCard.cashback_rate,
       reward_rate: apiCard.reward_rate,
       lounge_access: this.hasLoungeAccess(apiCard),
       eligibility: Array.isArray(apiCard.eligibility) ? apiCard.eligibility : this.extractEligibility(apiCard),
-      relevanceScore: 0 // Always ensure relevanceScore is present
+      relevanceScore: 0
     };
   }
 
-  private extractBankIdFromCard(card: any): string | null {
+  private extractBankIdFromApiCard(card: any): string | null {
     if (card.bank_id) return card.bank_id.toString();
     
     // Try to match by bank name
@@ -539,7 +471,7 @@ class CardService {
     return matchingBank ? matchingBank.id : null;
   }
 
-  private extractEnhancedTags(card: any, bankId: string | null): string[] {
+  private extractTags(card: any, bankId: string | null): string[] {
     const tags: string[] = [];
     
     // LTF detection
@@ -552,21 +484,6 @@ class CardService {
       tags.push(...card.tags.map((tag: any) => this.normalizeTag(tag)));
     }
     
-    // Bank-specific tags
-    if (bankId && this.bankTagMapping[bankId as keyof typeof this.bankTagMapping]) {
-      tags.push(...this.bankTagMapping[bankId as keyof typeof this.bankTagMapping]);
-    }
-    
-    // Auto-detect categories from card content
-    const cardText = `${card.name} ${card.features?.join(' ')} ${card.product_usps?.map((u: any) => u.description).join(' ')}`.toLowerCase();
-    
-    if (cardText.includes('fuel') || cardText.includes('petrol')) tags.push('fuel');
-    if (cardText.includes('travel') || cardText.includes('miles')) tags.push('travel');
-    if (cardText.includes('shopping') || cardText.includes('cashback')) tags.push('shopping');
-    if (cardText.includes('dining') || cardText.includes('restaurant')) tags.push('dining');
-    if (cardText.includes('lounge') || cardText.includes('airport')) tags.push('airport-lounge');
-    if (cardText.includes('grocery') || cardText.includes('supermarket')) tags.push('grocery');
-    
     return [...new Set(tags)];
   }
 
@@ -575,6 +492,19 @@ class CardService {
       return [];
     }
     return apiCards.map(card => this.transformCard(card));
+  }
+
+  private transformDetailCard(apiCard: any): CreditCard {
+    console.log('Transforming detailed card:', apiCard);
+    
+    const baseCard = this.transformCard(apiCard);
+    
+    return {
+      ...baseCard,
+      features: this.extractEnhancedFeatures(apiCard),
+      other_info: this.extractEnhancedOtherInfo(apiCard),
+      eligibility: this.extractEnhancedEligibility(apiCard)
+    };
   }
 
   private normalizeFeess(fee: any): number | string {
@@ -596,41 +526,6 @@ class CardService {
     }
     
     return '';
-  }
-
-  private extractEnhancedDetailTags(card: any): string[] {
-    const tags: string[] = [];
-    
-    if (this.normalizeFeess(card.joining_fee_text || card.joining_fee) === 0 || 
-        this.normalizeFeess(card.annual_fee_text || card.annual_fee) === 0) {
-      tags.push('ltf');
-    }
-    
-    if (card.tags && Array.isArray(card.tags)) {
-      tags.push(...card.tags.map((tag: any) => this.normalizeTag(tag)));
-    }
-    
-    // Enhanced auto-detection
-    const cardText = `${card.name} ${card.product_usps?.map((u: any) => u.description).join(' ')} ${card.product_benefits?.map((b: any) => b.html_text).join(' ')}`.toLowerCase();
-    
-    const categoryKeywords = {
-      fuel: ['fuel', 'petrol', 'diesel', 'gas', 'hpcl', 'bpcl'],
-      travel: ['travel', 'airline', 'hotel', 'miles', 'vacation'],
-      shopping: ['shopping', 'retail', 'online', 'amazon', 'flipkart'],
-      dining: ['dining', 'restaurant', 'food', 'zomato', 'swiggy'],
-      'airport-lounge': ['lounge', 'airport', 'priority', 'vip'],
-      grocery: ['grocery', 'supermarket', 'big bazaar', 'dmart'],
-      cashback: ['cashback', 'cash back', 'rewards', 'points'],
-      premium: ['premium', 'luxury', 'elite', 'exclusive']
-    };
-    
-    Object.entries(categoryKeywords).forEach(([category, keywords]) => {
-      if (keywords.some(keyword => cardText.includes(keyword))) {
-        tags.push(category);
-      }
-    });
-    
-    return [...new Set(tags)];
   }
 
   private extractEnhancedFeatures(card: any): string[] {
