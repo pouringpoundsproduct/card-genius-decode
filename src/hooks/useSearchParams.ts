@@ -27,12 +27,17 @@ export const useSearchParams = ({
 }: UseSearchParamsProps) => {
   const [searchParams, setSearchParams] = useRouterSearchParams();
 
+  // Helper function to safely convert string to boolean
+  const stringToBoolean = (value: string | null): boolean => {
+    return value === 'true';
+  };
+
   // Initialize state from URL parameters on mount
   useEffect(() => {
     const urlQuery = searchParams.get('q') || '';
     const urlTags = searchParams.get('tags')?.split(',').filter(Boolean) || [];
     const urlBankIds = searchParams.get('banks')?.split(',').filter(Boolean) || [];
-    const urlFreeCards = searchParams.get('free') === 'true';
+    const urlFreeCards = stringToBoolean(searchParams.get('free'));
 
     setSearchQuery(urlQuery);
     setSelectedTags(urlTags);

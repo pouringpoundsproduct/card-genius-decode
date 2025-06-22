@@ -29,7 +29,8 @@ const Search = () => {
     handleBankSelect,
     handleFreeCardsToggle,
     handleQuickFilter,
-    clearFilters
+    clearFilters,
+    searchCards
   } = searchState;
 
   // Handle URL parameters
@@ -44,7 +45,7 @@ const Search = () => {
     setShowFreeCards,
     onSearch: async (query, tags, bankIds, freeCards) => {
       // This will be called with initial URL parameters
-      await searchState.searchCards?.(query, tags, bankIds, freeCards);
+      await searchCards(query, tags, bankIds, freeCards);
     }
   });
 

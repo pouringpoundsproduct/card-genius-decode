@@ -183,7 +183,7 @@ class CardService {
       // Add manual results that aren't already included
       manualResults.forEach(card => {
         if (!combinedResults.some(c => c.id === card.id)) {
-          combinedResults.push(card);
+          combinedResults.push({ ...card, relevanceScore: card.relevanceScore || 0 });
         }
       });
       
@@ -524,7 +524,7 @@ class CardService {
       reward_rate: apiCard.reward_rate,
       lounge_access: this.hasLoungeAccess(apiCard),
       eligibility: Array.isArray(apiCard.eligibility) ? apiCard.eligibility : this.extractEligibility(apiCard),
-      relevanceScore: 0 // Ensure relevanceScore is always present
+      relevanceScore: 0 // Always ensure relevanceScore is present
     };
   }
 

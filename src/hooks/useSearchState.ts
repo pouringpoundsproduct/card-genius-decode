@@ -74,7 +74,7 @@ export const useSearchState = () => {
     await searchCards('', [], [], false);
   };
 
-  const hasActiveFilters = searchQuery || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards;
+  const hasActiveFilters = !!(searchQuery || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards);
 
   return {
     // State
@@ -101,6 +101,7 @@ export const useSearchState = () => {
     handleBankSelect,
     handleFreeCardsToggle,
     handleQuickFilter,
-    clearFilters
+    clearFilters,
+    searchCards // Add this to the return object
   };
 };
