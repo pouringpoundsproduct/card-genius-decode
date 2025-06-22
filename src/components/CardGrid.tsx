@@ -2,7 +2,7 @@
 import React from 'react';
 import { CreditCardItem } from './CreditCardItem';
 import { CreditCard as CreditCardType } from '../types/card';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CreditCard } from 'lucide-react';
 
 interface CardGridProps {
   cards: CreditCardType[];
@@ -45,7 +45,7 @@ export const CardGrid: React.FC<CardGridProps> = ({ cards, loading, error }) => 
       <div className="flex items-center justify-center py-20">
         <div className="text-center max-w-md">
           <div className="w-24 h-24 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CreditCardType className="h-12 w-12 text-gray-600" />
+            <CreditCard className="h-12 w-12 text-gray-600" />
           </div>
           <h3 className="text-xl font-semibold text-white mb-2">No cards found</h3>
           <p className="text-gray-400 mb-6">
