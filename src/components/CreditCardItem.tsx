@@ -31,6 +31,17 @@ export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
     }
   };
 
+  // Helper function to safely convert tag to string
+  const getTagString = (tag: any): string => {
+    if (typeof tag === 'string') {
+      return tag;
+    }
+    if (tag && typeof tag === 'object') {
+      return tag.name || tag.slug || tag.id || String(tag);
+    }
+    return String(tag);
+  };
+
   return (
     <div className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6 hover:border-purple-500/30 transition-all duration-300 hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/10">
       {/* Card Image */}
@@ -91,15 +102,20 @@ export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
         {/* Tags */}
         {card.tags && card.tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
-            {card.tags.slice(0, 3).map((tag, index) => (
-              <span 
-                key={index}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTagColor(tag)}`}
-              >
-                {getTagIcon(tag)}
-                {tag.replace('-', ' ').toUpperCase()}
-              </span>
-            ))}
+            {card.tags.slice(0, 3).map((tag, index) => {
+              const tagString = getTagString(tag);
+              const displayText = tagString.replace('-', ' ').toUpperCase();
+              
+              return (
+                <span 
+                  key={index}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTagColor(tagString)}`}
+                >
+                  {getTagIcon(tagString)}
+                  {displayText}
+                </span>
+              );
+            })}
             {card.tags.length > 3 && (
               <span className="text-gray-400 text-xs">+{card.tags.length - 3} more</span>
             )}
