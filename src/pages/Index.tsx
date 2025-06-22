@@ -11,16 +11,22 @@ import { useCardData } from '../hooks/useCardData';
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const { cards, loading, error, searchCards } = useCardData();
+  const [selectedBank, setSelectedBank] = useState('');
+  const { cards, loading, error, banks, tags, searchCards, loadBanksAndTags } = useCardData();
 
   useEffect(() => {
-    // Load initial featured cards
-    searchCards('', []);
+    // Load initial data - banks, tags, and featured cards
+    const initializeData = async () => {
+      await loadBanksAndTags();
+      searchCards('', [], '', 1);
+    };
+    
+    initializeData();
   }, []);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    searchCards(query, selectedTags);
+    searchCards(query, selectedTags, selectedBank, 1);
   };
 
   const handleTagSelect = (tag: string) => {
@@ -29,7 +35,12 @@ const Index = () => {
       : [...selectedTags, tag];
     
     setSelectedTags(newTags);
-    searchCards(searchQuery, newTags);
+    searchCards(searchQuery, newTags, selectedBank, 1);
+  };
+
+  const handleBankSelect = (bank: string) => {
+    setSelectedBank(bank);
+    searchCards(searchQuery, selectedTags, bank, 1);
   };
 
   return (
@@ -81,21 +92,60 @@ const Index = () => {
           <TagFilters 
             selectedTags={selectedTags}
             onTagSelect={handleTagSelect}
+            availableTags={tags}
           />
         </div>
       </section>
 
+      {/* Bank Filter (if we have active filters) */}
+      {(searchQuery || selectedTags.length > 0 || selectedBank) && banks.length > 0 && (
+        <section className="px-6 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center mb-4">
+              <h4 className="text-md font-medium text-gray-300 mr-4">Banks:</h4>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => handleBankSelect('')}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    !selectedBank
+                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                      : 'bg-gray-800/50 text-gray-300 border border-gray-700/50 hover:bg-gray-700/50'
+                  }`}
+                >
+                  All Banks
+                </button>
+                {banks.slice(0, 8).map((bank) => (
+                  <button
+                    key={bank.id}
+                    onClick={() => handleBankSelect(bank.name)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                      selectedBank === bank.name
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                        : 'bg-gray-800/50 text-gray-300 border border-gray-700/50 hover:bg-gray-700/50'
+                    }`}
+                  >
+                    {bank.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Featured Cards or Search Results */}
       <section className="px-6 py-12">
         <div className="max-w-7xl mx-auto">
-          {searchQuery || selectedTags.length > 0 ? (
+          {searchQuery || selectedTags.length > 0 || selectedBank ? (
             <div>
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-2xl font-bold text-white">
                   Search Results
-                  {(searchQuery || selectedTags.length > 0) && (
+                  {(searchQuery || selectedTags.length > 0 || selectedBank) && (
                     <span className="text-gray-400 font-normal text-lg ml-2">
-                      for "{searchQuery}" {selectedTags.length > 0 && `• ${selectedTags.length} filters`}
+                      {searchQuery && `for "${searchQuery}"`}
+                      {selectedBank && ` • ${selectedBank}`}
+                      {selectedTags.length > 0 && ` • ${selectedTags.length} filters`}
                     </span>
                   )}
                 </h3>
@@ -121,10 +171,13 @@ const Index = () => {
               Join thousands of smart spenders who've unlocked their card's true potential. 
               Every benefit. Every offer. Every reward.
             </p>
-            <button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
+            <Link
+              to="/search"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2"
+            >
               Explore All Cards
-              <ArrowRight className="h-5 w-5 ml-2 inline-block" />
-            </button>
+              <ArrowRight className="h-5 w-5" />
+            </Link>
           </div>
         </div>
       </section>

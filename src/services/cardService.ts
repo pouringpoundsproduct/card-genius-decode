@@ -25,20 +25,32 @@ class CardService {
     }
   }
 
-  async searchCards(query: string = '', tags: string[] = []): Promise<CreditCard[]> {
+  async searchCards(query: string = '', tags: string[] = [], bank: string = '', page: number = 1): Promise<CreditCard[]> {
     try {
-      const requestData = {
-        query,
-        tags,
-        limit: 20,
-        offset: 0
+      // Build the request payload according to BankKaro API format
+      const requestData: any = {
+        slug: query || "",
+        page: page,
+        limit: 20
       };
+
+      // Add tag filter if provided
+      if (tags.length > 0) {
+        requestData.tag_slug = tags[0]; // API seems to handle one tag at a time
+      }
+
+      // Add bank filter if provided
+      if (bank) {
+        requestData.bank = bank;
+      }
 
       console.log('Making API request to /cards with:', requestData);
       const response = await this.makeRequest('/cards', requestData);
       
-      if (response && response.cards) {
-        return this.transformCards(response.cards);
+      console.log('API Response:', response);
+      
+      if (response && response.data && response.data.cards) {
+        return this.transformCards(response.data.cards);
       }
       
       return [];
@@ -50,10 +62,14 @@ class CardService {
 
   async getCardDetails(slug: string): Promise<CreditCard | null> {
     try {
-      const response = await this.makeRequest('/cards', { slug });
+      const response = await this.makeRequest('/cards', { 
+        slug: slug,
+        page: 1,
+        limit: 1 
+      });
       
-      if (response && response.cards && response.cards.length > 0) {
-        return this.transformCard(response.cards[0]);
+      if (response && response.data && response.data.cards && response.data.cards.length > 0) {
+        return this.transformCard(response.data.cards[0]);
       }
       
       return null;
@@ -65,22 +81,24 @@ class CardService {
 
   async getBanksAndTags(): Promise<{ banks: any[], tags: any[] }> {
     try {
-      const response = await this.makeRequest('/bank-tags');
+      const response = await this.makeRequest('/bank-tags', {});
+      console.log('Bank-tags response:', response);
+      
       return {
-        banks: response.banks || [],
-        tags: response.tags || []
+        banks: response.data?.banks || [],
+        tags: response.data?.tags || []
       };
     } catch (error) {
       console.error('Error in getBanksAndTags:', error);
-      throw error;
+      return { banks: [], tags: [] };
     }
   }
 
   private transformCard(apiCard: any): CreditCard {
     return {
-      id: apiCard.id,
+      id: apiCard.id || apiCard.slug,
       name: apiCard.name || 'Unknown Card',
-      slug: apiCard.slug || this.generateSlug(apiCard.name),
+      slug: apiCard.slug || this.generateSlug(apiCard.name || ''),
       image: apiCard.image,
       bank_name: apiCard.bank_name || 'Unknown Bank',
       joining_fee: apiCard.joining_fee || 0,
@@ -88,12 +106,19 @@ class CardService {
       welcome_offer: apiCard.welcome_offer,
       apply_url: apiCard.apply_url,
       tags: this.extractTags(apiCard),
-      features: apiCard.features || [],
-      other_info: apiCard.other_info || []
+      features: Array.isArray(apiCard.features) ? apiCard.features : [],
+      other_info: Array.isArray(apiCard.other_info) ? apiCard.other_info : [],
+      cashback_rate: apiCard.cashback_rate,
+      reward_rate: apiCard.reward_rate,
+      lounge_access: this.hasLoungeAccess(apiCard),
+      eligibility: Array.isArray(apiCard.eligibility) ? apiCard.eligibility : []
     };
   }
 
   private transformCards(apiCards: any[]): CreditCard[] {
+    if (!Array.isArray(apiCards)) {
+      return [];
+    }
     return apiCards.map(card => this.transformCard(card));
   }
 
@@ -110,9 +135,10 @@ class CardService {
       tags.push(...card.tags);
     }
     
-    // Extract from features using fuzzy matching
-    const features = (card.features || []).join(' ').toLowerCase();
-    const otherInfo = (card.other_info || []).join(' ').toLowerCase();
+    // Extract from features and other_info using fuzzy matching
+    const features = Array.isArray(card.features) ? card.features.join(' ').toLowerCase() : '';
+    const otherInfo = Array.isArray(card.other_info) ? 
+      card.other_info.map((info: any) => typeof info === 'string' ? info : info.content || '').join(' ').toLowerCase() : '';
     const allText = `${features} ${otherInfo}`;
     
     if (allText.includes('fuel')) tags.push('fuel');
@@ -123,6 +149,15 @@ class CardService {
     if (allText.includes('reward')) tags.push('rewards');
     
     return [...new Set(tags)]; // Remove duplicates
+  }
+
+  private hasLoungeAccess(card: any): boolean {
+    const features = Array.isArray(card.features) ? card.features.join(' ').toLowerCase() : '';
+    const otherInfo = Array.isArray(card.other_info) ? 
+      card.other_info.map((info: any) => typeof info === 'string' ? info : info.content || '').join(' ').toLowerCase() : '';
+    const allText = `${features} ${otherInfo}`;
+    
+    return allText.includes('lounge') || allText.includes('airport lounge');
   }
 
   private generateSlug(name: string): string {
