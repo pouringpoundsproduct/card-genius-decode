@@ -4,15 +4,21 @@ import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, Gift, Star, CreditCard, ExternalLink, 
   Shield, Percent, Calendar, Users, Award, Plane, DollarSign,
-  Clock, AlertCircle, CheckCircle, Info
+  Clock, AlertCircle, CheckCircle, Info, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useCardData } from '../hooks/useCardData';
 import { CreditCard as CreditCardType } from '../types/card';
+import { ComparisonButton } from '../components/ComparisonButton';
 
 const CardDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const { getCardDetails, loading, error } = useCardData();
   const [card, setCard] = useState<CreditCardType | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    features: false,
+    eligibility: false,
+    otherInfo: false
+  });
 
   useEffect(() => {
     const loadCard = async () => {
@@ -26,6 +32,13 @@ const CardDetail = () => {
     
     loadCard();
   }, [slug, getCardDetails]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
   if (loading) {
     return (
@@ -62,6 +75,40 @@ const CardDetail = () => {
       </div>
     );
   }
+
+  const ExpandableSection: React.FC<{
+    title: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+    sectionKey: string;
+    itemCount?: number;
+  }> = ({ title, icon, children, sectionKey, itemCount }) => {
+    const isExpanded = expandedSections[sectionKey];
+    
+    return (
+      <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl overflow-hidden">
+        <button
+          onClick={() => toggleSection(sectionKey)}
+          className="w-full p-6 flex items-center justify-between hover:bg-gray-800/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            {icon}
+            <h2 className="text-xl font-bold">
+              {title}
+              {itemCount && <span className="text-gray-400 font-normal ml-2">({itemCount})</span>}
+            </h2>
+          </div>
+          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+        </button>
+        
+        {isExpanded && (
+          <div className="px-6 pb-6">
+            {children}
+          </div>
+        )}
+      </section>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -190,11 +237,12 @@ const CardDetail = () => {
 
         {/* Key Benefits Section */}
         {card.features && card.features.length > 0 && (
-          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <Award className="h-6 w-6 text-yellow-400" />
-              Key Benefits & Features
-            </h2>
+          <ExpandableSection
+            title="Key Benefits & Features"
+            icon={<Award className="h-6 w-6 text-yellow-400" />}
+            sectionKey="features"
+            itemCount={card.features.length}
+          >
             <div className="grid gap-4">
               {card.features.map((feature, index) => (
                 <div key={index} className="flex items-start gap-4 p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 hover:border-purple-500/30 transition-colors">
@@ -203,7 +251,7 @@ const CardDetail = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </ExpandableSection>
         )}
 
         {/* Reward Structure Section */}
@@ -238,11 +286,12 @@ const CardDetail = () => {
 
         {/* Eligibility Criteria Section */}
         {card.eligibility && card.eligibility.length > 0 && (
-          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <Users className="h-6 w-6 text-green-400" />
-              Eligibility Criteria
-            </h2>
+          <ExpandableSection
+            title="Eligibility Criteria"
+            icon={<Users className="h-6 w-6 text-green-400" />}
+            sectionKey="eligibility"
+            itemCount={card.eligibility.length}
+          >
             <div className="grid gap-3">
               {card.eligibility.map((criteria, index) => (
                 <div key={index} className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl border border-green-500/20">
@@ -251,16 +300,17 @@ const CardDetail = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </ExpandableSection>
         )}
 
         {/* Additional Information Section */}
         {card.other_info && card.other_info.length > 0 && (
-          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <Info className="h-6 w-6 text-blue-400" />
-              Additional Information
-            </h2>
+          <ExpandableSection
+            title="Additional Information"
+            icon={<Info className="h-6 w-6 text-blue-400" />}
+            sectionKey="otherInfo"
+            itemCount={card.other_info.length}
+          >
             <div className="space-y-4">
               {card.other_info.map((info, index) => (
                 <div key={index} className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30">
@@ -268,7 +318,7 @@ const CardDetail = () => {
                 </div>
               ))}
             </div>
-          </section>
+          </ExpandableSection>
         )}
 
         {/* Airport Lounge Access */}
@@ -313,6 +363,8 @@ const CardDetail = () => {
           </div>
         </section>
       </div>
+
+      <ComparisonButton />
     </div>
   );
 };
