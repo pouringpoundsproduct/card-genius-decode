@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { ArrowLeft, Filter, SlidersHorizontal, AlertCircle } from 'lucide-react';
+import { ArrowLeft, SlidersHorizontal, AlertCircle } from 'lucide-react';
 import { SearchBar } from '../components/SearchBar';
 import { CardGrid } from '../components/CardGrid';
-import { TagFilters } from '../components/TagFilters';
-import { BankSelector } from '../components/BankSelector';
+import { SearchFilters } from '../components/SearchFilters';
+import { SearchResultsHeader } from '../components/SearchResultsHeader';
+import { SearchFilterSidebar } from '../components/SearchFilterSidebar';
+import { ActiveFiltersDisplay } from '../components/ActiveFiltersDisplay';
 import { useCardData } from '../hooks/useCardData';
 
 const Search = () => {
@@ -131,120 +133,35 @@ const Search = () => {
           </div>
           
           {/* Mobile Filters */}
-          <div className={`lg:hidden transition-all duration-300 ${showFilters ? 'block' : 'hidden'}`}>
-            <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6 mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Filter className="h-5 w-5 text-purple-400" />
-                  Filters
-                </h3>
-                {hasActiveFilters && (
-                  <button
-                    onClick={clearFilters}
-                    className="text-purple-400 hover:text-purple-300 text-sm font-medium"
-                  >
-                    Clear all
-                  </button>
-                )}
-              </div>
-              
-              {/* Free Cards Toggle */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-300 mb-3">Card Type</h4>
-                <button
-                  onClick={handleFreeCardsToggle}
-                  className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all border ${
-                    showFreeCards
-                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                      : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
-                  }`}
-                >
-                  {showFreeCards ? '✓ ' : ''}Free Cards Only
-                </button>
-              </div>
-              
-              {/* Categories */}
-              {tags.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">Categories</h4>
-                  <TagFilters 
-                    selectedTags={selectedTags}
-                    onTagSelect={handleTagSelect}
-                    availableTags={tags}
-                  />
-                </div>
-              )}
-              
-              {/* Banks */}
-              {banks.length > 0 && (
-                <BankSelector
-                  selectedBankIds={selectedBankIds}
-                  onBankSelect={handleBankSelect}
-                  availableBanks={banks}
-                />
-              )}
-            </div>
-          </div>
+          <SearchFilters
+            showFilters={showFilters}
+            hasActiveFilters={hasActiveFilters}
+            showFreeCards={showFreeCards}
+            selectedTags={selectedTags}
+            selectedBankIds={selectedBankIds}
+            tags={tags}
+            banks={banks}
+            onClearFilters={clearFilters}
+            onFreeCardsToggle={handleFreeCardsToggle}
+            onTagSelect={handleTagSelect}
+            onBankSelect={handleBankSelect}
+          />
         </div>
 
         <div className="grid lg:grid-cols-4 gap-8">
           {/* Desktop Sidebar Filters */}
-          <div className="hidden lg:block">
-            <div className="sticky top-24">
-              <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <Filter className="h-5 w-5 text-purple-400" />
-                    Filters
-                  </h3>
-                  {hasActiveFilters && (
-                    <button
-                      onClick={clearFilters}
-                      className="text-purple-400 hover:text-purple-300 text-sm font-medium"
-                    >
-                      Clear all
-                    </button>
-                  )}
-                </div>
-                
-                {/* Free Cards Toggle */}
-                <div className="mb-8">
-                  <h4 className="text-sm font-medium text-gray-300 mb-3">Card Type</h4>
-                  <button
-                    onClick={handleFreeCardsToggle}
-                    className={`w-full px-4 py-3 rounded-lg text-sm font-medium transition-all border ${
-                      showFreeCards
-                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                        : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
-                    }`}
-                  >
-                    {showFreeCards ? '✓ ' : ''}Free Cards Only
-                  </button>
-                </div>
-                
-                {/* Tag Filters */}
-                {tags.length > 0 && (
-                  <div className="mb-8">
-                    <h4 className="text-sm font-medium text-gray-300 mb-4">Categories</h4>
-                    <TagFilters 
-                      selectedTags={selectedTags}
-                      onTagSelect={handleTagSelect}
-                      availableTags={tags}
-                    />
-                  </div>
-                )}
-
-                {/* Bank Filters */}
-                {banks.length > 0 && (
-                  <BankSelector
-                    selectedBankIds={selectedBankIds}
-                    onBankSelect={handleBankSelect}
-                    availableBanks={banks}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
+          <SearchFilterSidebar
+            hasActiveFilters={hasActiveFilters}
+            showFreeCards={showFreeCards}
+            selectedTags={selectedTags}
+            selectedBankIds={selectedBankIds}
+            tags={tags}
+            banks={banks}
+            onClearFilters={clearFilters}
+            onFreeCardsToggle={handleFreeCardsToggle}
+            onTagSelect={handleTagSelect}
+            onBankSelect={handleBankSelect}
+          />
 
           {/* Results Section */}
           <div className="lg:col-span-3">
@@ -260,71 +177,28 @@ const Search = () => {
             )}
 
             {/* Results Header */}
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h2 className="text-2xl font-bold text-white">
-                  {hasActiveFilters ? 'Search Results' : 'All Credit Cards'}
-                </h2>
-                {hasActiveFilters && (
-                  <p className="text-gray-400 mt-1">
-                    {searchQuery && `"${searchQuery}"`}
-                    {searchQuery && (selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards) && ' • '}
-                    {selectedBankIds.length > 0 && `${selectedBankIds.length} banks`}
-                    {selectedBankIds.length > 0 && (selectedTags.length > 0 || showFreeCards) && ' • '}
-                    {selectedTags.length > 0 && `${selectedTags.length} categories`}
-                    {selectedTags.length > 0 && showFreeCards && ' • '}
-                    {showFreeCards && 'Free cards only'}
-                  </p>
-                )}
-              </div>
-              {cards.length > 0 && !loading && (
-                <p className="text-gray-400">{cards.length} cards found</p>
-              )}
-            </div>
+            <SearchResultsHeader
+              hasActiveFilters={hasActiveFilters}
+              searchQuery={searchQuery}
+              selectedTags={selectedTags}
+              selectedBankIds={selectedBankIds}
+              showFreeCards={showFreeCards}
+              cardsCount={cards.length}
+              loading={loading}
+            />
 
             {/* Active Filters Display */}
-            {hasActiveFilters && (
-              <div className="mb-6">
-                <p className="text-sm text-gray-400 mb-2">Active filters:</p>
-                <div className="flex flex-wrap gap-2">
-                  {showFreeCards && (
-                    <button
-                      onClick={handleFreeCardsToggle}
-                      className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-sm font-medium hover:bg-green-500/30 transition-colors"
-                    >
-                      Free Cards
-                      <span className="text-green-300">×</span>
-                    </button>
-                  )}
-                  {selectedBankIds.map((bankId) => {
-                    const bank = banks.find(b => b.id === bankId);
-                    return bank ? (
-                      <button
-                        key={bankId}
-                        onClick={() => handleBankSelect(bankId)}
-                        className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-sm font-medium hover:bg-blue-500/30 transition-colors"
-                      >
-                        {bank.name}
-                        <span className="text-blue-300">×</span>
-                      </button>
-                    ) : null;
-                  })}
-                  {selectedTags.map((tag) => {
-                    const tagData = tags.find(t => (t.slug || t.id) === tag);
-                    return (
-                      <button
-                        key={tag}
-                        onClick={() => handleTagSelect(tag)}
-                        className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-sm font-medium hover:bg-purple-500/30 transition-colors"
-                      >
-                        {tagData?.name || tag.replace('-', ' ').toUpperCase()}
-                        <span className="text-purple-300">×</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <ActiveFiltersDisplay
+              hasActiveFilters={hasActiveFilters}
+              showFreeCards={showFreeCards}
+              selectedBankIds={selectedBankIds}
+              selectedTags={selectedTags}
+              banks={banks}
+              tags={tags}
+              onFreeCardsToggle={handleFreeCardsToggle}
+              onBankSelect={handleBankSelect}
+              onTagSelect={handleTagSelect}
+            />
 
             {/* Cards Grid */}
             <CardGrid cards={cards} loading={loading} error={error} />
