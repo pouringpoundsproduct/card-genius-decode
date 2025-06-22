@@ -256,6 +256,12 @@ class CardService {
       if (response?.data?.cards) {
         let cards = this.transformCards(response.data.cards);
         
+        // Ensure all cards have relevanceScore
+        cards = cards.map(card => ({
+          ...card,
+          relevanceScore: card.relevanceScore || 0
+        }));
+        
         // Enhanced search with Fuse.js
         if (normalizedQuery && cards.length > 0) {
           cards = this.enhancedSearch(cards, normalizedQuery);
@@ -518,7 +524,8 @@ class CardService {
       cashback_rate: apiCard.cashback_rate,
       reward_rate: apiCard.reward_rate,
       lounge_access: this.hasLoungeAccess(apiCard),
-      eligibility: Array.isArray(apiCard.eligibility) ? apiCard.eligibility : this.extractEligibility(apiCard)
+      eligibility: Array.isArray(apiCard.eligibility) ? apiCard.eligibility : this.extractEligibility(apiCard),
+      relevanceScore: 0 // Default relevance score
     };
   }
 
