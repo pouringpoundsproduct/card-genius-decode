@@ -9,6 +9,7 @@ export const useCardData = () => {
   const [error, setError] = useState<string | null>(null);
   const [banks, setBanks] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   const searchCards = useCallback(async (
     query: string = '', 
@@ -24,6 +25,7 @@ export const useCardData = () => {
       const result = await cardService.searchCards(query, selectedTags, selectedBank, page);
       console.log('Search results:', result);
       setCards(result);
+      setInitialized(true);
     } catch (err) {
       console.error('Error fetching cards:', err);
       setError('Failed to load cards. Please try again.');
@@ -51,11 +53,33 @@ export const useCardData = () => {
 
   const loadBanksAndTags = useCallback(async () => {
     try {
+      console.log('Loading banks and tags...');
       const { banks: banksList, tags: tagsList } = await cardService.getBanksAndTags();
+      console.log('Loaded banks:', banksList);
+      console.log('Loaded tags:', tagsList);
       setBanks(banksList);
       setTags(tagsList);
     } catch (err) {
       console.error('Error loading banks and tags:', err);
+      // Fallback data is handled in the service
+    }
+  }, []);
+
+  const loadFeaturedCards = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Loading featured cards...');
+      const featuredCards = await cardService.getFeaturedCards();
+      console.log('Featured cards loaded:', featuredCards);
+      setCards(featuredCards);
+      setInitialized(true);
+    } catch (err) {
+      console.error('Error loading featured cards:', err);
+      setError('Unable to load cards. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -65,8 +89,10 @@ export const useCardData = () => {
     error,
     banks,
     tags,
+    initialized,
     searchCards,
     getCardDetails,
-    loadBanksAndTags
+    loadBanksAndTags,
+    loadFeaturedCards
   };
 };

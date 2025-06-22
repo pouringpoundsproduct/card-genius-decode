@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, CreditCard, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { CardGrid } from '../components/CardGrid';
@@ -12,21 +12,26 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedBank, setSelectedBank] = useState('');
-  const { cards, loading, error, banks, tags, searchCards, loadBanksAndTags } = useCardData();
+  const { cards, loading, error, banks, tags, initialized, searchCards, loadBanksAndTags, loadFeaturedCards } = useCardData();
 
   useEffect(() => {
-    // Load initial data - banks, tags, and featured cards
+    // Load initial data
     const initializeData = async () => {
+      console.log('Initializing data...');
       await loadBanksAndTags();
-      searchCards('', [], '', 1);
+      await loadFeaturedCards();
     };
     
     initializeData();
-  }, []);
+  }, [loadBanksAndTags, loadFeaturedCards]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    searchCards(query, selectedTags, selectedBank, 1);
+    if (query.trim()) {
+      searchCards(query, selectedTags, selectedBank, 1);
+    } else {
+      loadFeaturedCards();
+    }
   };
 
   const handleTagSelect = (tag: string) => {
@@ -42,6 +47,8 @@ const Index = () => {
     setSelectedBank(bank);
     searchCards(searchQuery, selectedTags, bank, 1);
   };
+
+  const hasActiveFilters = searchQuery || selectedTags.length > 0 || selectedBank;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -98,7 +105,7 @@ const Index = () => {
       </section>
 
       {/* Bank Filter (if we have active filters) */}
-      {(searchQuery || selectedTags.length > 0 || selectedBank) && banks.length > 0 && (
+      {hasActiveFilters && banks.length > 0 && (
         <section className="px-6 py-4">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center mb-4">
@@ -133,21 +140,38 @@ const Index = () => {
         </section>
       )}
 
+      {/* Error State */}
+      {error && !loading && (
+        <section className="px-6 py-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-red-900/20 border border-red-500/20 rounded-lg p-6 text-center">
+              <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-red-400 mb-2">Unable to Load Cards</h3>
+              <p className="text-gray-300 mb-4">{error}</p>
+              <button 
+                onClick={() => loadFeaturedCards()}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Featured Cards or Search Results */}
       <section className="px-6 py-12">
         <div className="max-w-7xl mx-auto">
-          {searchQuery || selectedTags.length > 0 || selectedBank ? (
+          {hasActiveFilters ? (
             <div>
               <div className="flex items-center justify-between mb-8">
                 <h3 className="text-2xl font-bold text-white">
                   Search Results
-                  {(searchQuery || selectedTags.length > 0 || selectedBank) && (
-                    <span className="text-gray-400 font-normal text-lg ml-2">
-                      {searchQuery && `for "${searchQuery}"`}
-                      {selectedBank && ` • ${selectedBank}`}
-                      {selectedTags.length > 0 && ` • ${selectedTags.length} filters`}
-                    </span>
-                  )}
+                  <span className="text-gray-400 font-normal text-lg ml-2">
+                    {searchQuery && `for "${searchQuery}"`}
+                    {selectedBank && ` • ${selectedBank}`}
+                    {selectedTags.length > 0 && ` • ${selectedTags.length} filters`}
+                  </span>
                 </h3>
                 {cards.length > 0 && (
                   <p className="text-gray-400">{cards.length} cards found</p>
