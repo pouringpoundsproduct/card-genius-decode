@@ -26,13 +26,18 @@ class CardService {
   private lastBankTagsUpdate = 0;
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-  // Bank to Tag mapping for better categorization
+  // Enhanced Bank to Tag mapping for better categorization
   private bankTagMapping = {
-    '1': ['hdfc', 'premium', 'travel'], // HDFC Bank
-    '2': ['sbi', 'government', 'fuel'], // SBI Card
-    '3': ['axis', 'lifestyle', 'rewards'], // Axis Bank
-    '4': ['kotak', 'digital', 'cashback'], // Kotak Bank
-    '14': ['icici', 'banking', 'shopping'] // ICICI Bank
+    '1': ['hdfc', 'premium', 'travel', 'rewards', 'lifestyle'], // HDFC Bank
+    '2': ['sbi', 'government', 'fuel', 'cashback', 'utility'], // SBI Card
+    '3': ['axis', 'lifestyle', 'rewards', 'travel', 'dining'], // Axis Bank
+    '4': ['kotak', 'digital', 'cashback', 'shopping', 'utility'], // Kotak Bank
+    '14': ['icici', 'banking', 'shopping', 'fuel', 'travel'], // ICICI Bank
+    '5': ['indusind', 'premium', 'dining', 'travel', 'rewards'], // IndusInd Bank
+    '6': ['standard-chartered', 'premium', 'travel', 'cashback'], // Standard Chartered
+    '7': ['citibank', 'premium', 'rewards', 'travel', 'cashback'], // Citibank
+    '8': ['american-express', 'premium', 'travel', 'rewards', 'dining'], // American Express
+    '9': ['yes-bank', 'lifestyle', 'rewards', 'shopping', 'dining'] // Yes Bank
   };
 
   private async makeRequest(endpoint: string, data?: any): Promise<any> {
@@ -255,12 +260,6 @@ class CardService {
       
       if (response?.data?.cards) {
         let cards = this.transformCards(response.data.cards);
-        
-        // Ensure all cards have relevanceScore
-        cards = cards.map(card => ({
-          ...card,
-          relevanceScore: card.relevanceScore || 0
-        }));
         
         // Enhanced search with Fuse.js
         if (normalizedQuery && cards.length > 0) {
