@@ -1,3 +1,4 @@
+
 import { CreditCard, ApiResponse } from '../types/card';
 
 const API_BASE_URL = 'https://bk-api.bankkaro.com/sp/api';
@@ -15,26 +16,19 @@ const fallbackBanks = [
 ];
 
 const fallbackTags = [
-  { id: 'ltf', name: 'Lifetime Free' },
-  { id: 'cashback', name: 'Cashback' },
-  { id: 'airport-lounge', name: 'Airport Lounge' },
-  { id: 'fuel', name: 'Fuel Benefits' },
-  { id: 'shopping', name: 'Shopping' },
-  { id: 'travel', name: 'Travel' },
-  { id: 'rewards', name: 'Reward Points' }
-];
-
-// Known working card slugs for initial featured cards
-const featuredCardSlugs = [
-  'hdfc-regalia-credit-card',
-  'sbi-simplysave-credit-card',
-  'icici-amazon-pay-credit-card',
-  'axis-magnus-credit-card',
-  'hdfc-millennia-credit-card',
-  'sbi-cashback-credit-card'
+  { id: '1', name: 'Fuel', slug: 'best-fuel-credit-card' },
+  { id: '2', name: 'Shopping', slug: 'best-shopping-credit-card' },
+  { id: '4', name: 'Airport Lounge', slug: 'A-b-c-d' },
+  { id: '5', name: 'Online Food Ordering', slug: 'online-food-ordering' },
+  { id: '6', name: 'Dining', slug: 'best-dining-credit-card' },
+  { id: '7', name: 'Grocery Shopping', slug: 'BestCardsforGroceryShopping' },
+  { id: '12', name: 'Travel', slug: 'best-travel-credit-card' },
+  { id: '14', name: 'Utility Bills', slug: 'best-utility-credit-card' }
 ];
 
 class CardService {
+  private allCards: CreditCard[] = [];
+
   private async makeRequest(endpoint: string, data?: any): Promise<any> {
     try {
       console.log(`Making request to ${API_BASE_URL}${endpoint}`, data);
@@ -63,78 +57,104 @@ class CardService {
     }
   }
 
-  async getFeaturedCards(): Promise<CreditCard[]> {
-    const cards: CreditCard[] = [];
-    
-    for (const slug of featuredCardSlugs) {
-      try {
-        const card = await this.getCardDetails(slug);
-        if (card) {
-          cards.push(card);
-        }
-      } catch (error) {
-        console.warn(`Failed to load featured card: ${slug}`, error);
-        // Continue with other cards even if one fails
-      }
-    }
-    
-    return cards;
-  }
-
-  async searchCards(query: string = '', tags: string[] = [], bank: string = '', page: number = 1): Promise<CreditCard[]> {
+  async getAllCards(): Promise<CreditCard[]> {
     try {
-      // Don't make API call with empty parameters - return featured cards instead
-      if (!query && tags.length === 0 && !bank) {
-        return this.getFeaturedCards();
-      }
-
-      const requestData: any = {
-        page: page,
-        limit: 20
+      const requestData = {
+        slug: "",
+        banks_ids: [],
+        card_networks: [],
+        annualFees: "",
+        credit_score: "",
+        sort_by: "",
+        free_cards: "",
+        eligiblityPayload: {},
+        cardGeniusPayload: {}
       };
 
-      // Only add parameters if they have values
-      if (query) {
-        // Convert search query to potential slug format
-        const slugQuery = query.toLowerCase()
-          .replace(/[^a-z0-9\s]/g, '')
-          .replace(/\s+/g, '-');
-        requestData.slug = slugQuery;
+      console.log('Fetching all cards with payload:', requestData);
+      const response = await this.makeRequest('/cards', requestData);
+      
+      if (response && response.data && response.data.cards) {
+        this.allCards = this.transformCards(response.data.cards);
+        console.log('Transformed cards:', this.allCards);
+        return this.allCards;
+      }
+      
+      return [];
+    } catch (error) {
+      console.error('Error in getAllCards:', error);
+      // Return empty array instead of throwing to prevent app crash
+      return [];
+    }
+  }
+
+  async searchCards(
+    query: string = '', 
+    tags: string[] = [], 
+    bankIds: string[] = [], 
+    freeCards: boolean = false
+  ): Promise<CreditCard[]> {
+    try {
+      // If no search criteria, return all cards
+      if (!query && tags.length === 0 && bankIds.length === 0 && !freeCards) {
+        return this.getAllCards();
       }
 
-      if (tags.length > 0) {
-        requestData.tag_slug = tags[0];
-      }
-
-      if (bank) {
-        requestData.bank = bank;
-      }
+      const requestData = {
+        slug: query ? this.generateSlug(query) : "",
+        banks_ids: bankIds,
+        card_networks: [],
+        annualFees: "",
+        credit_score: "",
+        sort_by: "",
+        free_cards: freeCards ? "1" : "",
+        eligiblityPayload: {},
+        cardGeniusPayload: {}
+      };
 
       console.log('Search request:', requestData);
       const response = await this.makeRequest('/cards', requestData);
       
       if (response && response.data && response.data.cards) {
-        return this.transformCards(response.data.cards);
+        let cards = this.transformCards(response.data.cards);
+        
+        // Client-side filtering for tags if API doesn't handle it properly
+        if (tags.length > 0) {
+          cards = cards.filter(card => 
+            card.tags?.some(tag => tags.includes(tag)) ||
+            this.cardMatchesTags(card, tags)
+          );
+        }
+        
+        return cards;
       }
       
       return [];
     } catch (error) {
       console.error('Error in searchCards:', error);
-      // Return featured cards as fallback
-      if (!query && tags.length === 0 && !bank) {
-        return this.getFeaturedCards();
+      // Return all cards as fallback
+      if (!query && tags.length === 0 && bankIds.length === 0) {
+        return this.getAllCards();
       }
-      throw error;
+      return [];
     }
   }
 
   async getCardDetails(slug: string): Promise<CreditCard | null> {
     try {
-      const response = await this.makeRequest('/cards', { 
+      const requestData = {
         slug: slug,
-        page: 1,
-        limit: 1 
-      });
+        banks_ids: [],
+        card_networks: [],
+        annualFees: "",
+        credit_score: "",
+        sort_by: "",
+        free_cards: "",
+        eligiblityPayload: {},
+        cardGeniusPayload: {}
+      };
+
+      const response = await this.makeRequest('/cards', requestData);
       
       if (response && response.data && response.data.cards && response.data.cards.length > 0) {
         return this.transformCard(response.data.cards[0]);
@@ -143,7 +163,7 @@ class CardService {
       return null;
     } catch (error) {
       console.error('Error in getCardDetails:', error);
-      throw error;
+      return null;
     }
   }
 
@@ -158,12 +178,40 @@ class CardService {
       };
     } catch (error) {
       console.error('Error in getBanksAndTags, using fallback data:', error);
-      // Return fallback data when API fails
       return { 
         banks: fallbackBanks, 
         tags: fallbackTags 
       };
     }
+  }
+
+  private cardMatchesTags(card: CreditCard, tags: string[]): boolean {
+    const cardText = `${card.name} ${card.features?.join(' ')} ${card.other_info?.join(' ')}`.toLowerCase();
+    
+    return tags.some(tag => {
+      switch(tag) {
+        case 'fuel':
+        case 'best-fuel-credit-card':
+          return cardText.includes('fuel') || cardText.includes('petrol');
+        case 'shopping':
+        case 'best-shopping-credit-card':
+          return cardText.includes('shopping') || cardText.includes('retail');
+        case 'airport-lounge':
+        case 'A-b-c-d':
+          return cardText.includes('lounge') || cardText.includes('airport');
+        case 'travel':
+        case 'best-travel-credit-card':
+          return cardText.includes('travel') || cardText.includes('miles');
+        case 'dining':
+        case 'best-dining-credit-card':
+          return cardText.includes('dining') || cardText.includes('restaurant');
+        case 'grocery':
+        case 'BestCardsforGroceryShopping':
+          return cardText.includes('grocery') || cardText.includes('supermarket');
+        default:
+          return false;
+      }
+    });
   }
 
   private transformCard(apiCard: any): CreditCard {

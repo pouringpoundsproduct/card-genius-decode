@@ -14,15 +14,15 @@ export const useCardData = () => {
   const searchCards = useCallback(async (
     query: string = '', 
     selectedTags: string[] = [], 
-    selectedBank: string = '',
-    page: number = 1
+    selectedBankIds: string[] = [],
+    freeCards: boolean = false
   ) => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('Searching for cards:', { query, selectedTags, selectedBank, page });
-      const result = await cardService.searchCards(query, selectedTags, selectedBank, page);
+      console.log('Searching for cards:', { query, selectedTags, selectedBankIds, freeCards });
+      const result = await cardService.searchCards(query, selectedTags, selectedBankIds, freeCards);
       console.log('Search results:', result);
       setCards(result);
       setInitialized(true);
@@ -65,18 +65,18 @@ export const useCardData = () => {
     }
   }, []);
 
-  const loadFeaturedCards = useCallback(async () => {
+  const loadAllCards = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('Loading featured cards...');
-      const featuredCards = await cardService.getFeaturedCards();
-      console.log('Featured cards loaded:', featuredCards);
-      setCards(featuredCards);
+      console.log('Loading all cards...');
+      const allCards = await cardService.getAllCards();
+      console.log('All cards loaded:', allCards);
+      setCards(allCards);
       setInitialized(true);
     } catch (err) {
-      console.error('Error loading featured cards:', err);
+      console.error('Error loading all cards:', err);
       setError('Unable to load cards. Please check your connection and try again.');
     } finally {
       setLoading(false);
@@ -93,6 +93,6 @@ export const useCardData = () => {
     searchCards,
     getCardDetails,
     loadBanksAndTags,
-    loadFeaturedCards
+    loadAllCards
   };
 };
