@@ -1,20 +1,24 @@
-
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
+import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { CardGrid } from '../components/CardGrid';
 import { TagFilters } from '../components/TagFilters';
 import { FeaturedCards } from '../components/FeaturedCards';
 import { BankSelector } from '../components/BankSelector';
+import { ComparisonModal } from '../components/ComparisonModal';
 import { useCardData } from '../hooks/useCardData';
+import { useComparison } from '../contexts/ComparisonContext';
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
   const [showFreeCards, setShowFreeCards] = useState(false);
+  const [showAllCards, setShowAllCards] = useState(false);
+  const [showComparisonModal, setShowComparisonModal] = useState(false);
   const { cards, loading, error, banks, tags, initialized, searchCards, loadBanksAndTags, loadAllCards } = useCardData();
+  const { comparisonCards } = useComparison();
 
   useEffect(() => {
     const initializeData = async () => {
@@ -57,10 +61,27 @@ const Index = () => {
     await searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
   };
 
+  const handleShowAllToggle = () => {
+    setShowAllCards(!showAllCards);
+  };
+
   const hasActiveFilters = searchQuery || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
+      {/* Comparison Button - Fixed */}
+      {comparisonCards.length > 0 && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <button
+            onClick={() => setShowComparisonModal(true)}
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg transition-all transform hover:scale-105 flex items-center gap-2"
+          >
+            <BarChart3 className="h-5 w-5" />
+            Compare ({comparisonCards.length})
+          </button>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative px-6 py-20 text-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-gray-900/40"></div>
@@ -211,7 +232,12 @@ const Index = () => {
               <CardGrid cards={cards} loading={loading} error={error} />
             </div>
           ) : (
-            <FeaturedCards cards={cards} loading={loading} />
+            <FeaturedCards 
+              cards={cards} 
+              loading={loading} 
+              showAllCards={showAllCards}
+              onShowAllToggle={handleShowAllToggle}
+            />
           )}
         </div>
       </section>
@@ -236,6 +262,12 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Comparison Modal */}
+      <ComparisonModal 
+        isOpen={showComparisonModal}
+        onClose={() => setShowComparisonModal(false)}
+      />
     </div>
   );
 };

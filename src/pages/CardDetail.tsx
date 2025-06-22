@@ -1,18 +1,20 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, Gift, Star, CreditCard, ExternalLink, 
   Shield, Percent, Calendar, Users, Award, Plane, DollarSign,
-  Clock, AlertCircle, CheckCircle, Info
+  Clock, AlertCircle, CheckCircle, Info, Plus, Check
 } from 'lucide-react';
 import { useCardData } from '../hooks/useCardData';
+import { useComparison } from '../contexts/ComparisonContext';
 import { CreditCard as CreditCardType } from '../types/card';
 
 const CardDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const { getCardDetails, loading, error } = useCardData();
+  const { addToComparison, isInComparison } = useComparison();
   const [card, setCard] = useState<CreditCardType | null>(null);
+  const [expandedFeatures, setExpandedFeatures] = useState(false);
 
   useEffect(() => {
     const loadCard = async () => {
@@ -26,6 +28,12 @@ const CardDetail = () => {
     
     loadCard();
   }, [slug, getCardDetails]);
+
+  const handleAddToComparison = () => {
+    if (card) {
+      addToComparison(card);
+    }
+  };
 
   if (loading) {
     return (
@@ -63,11 +71,13 @@ const CardDetail = () => {
     );
   }
 
+  const inComparison = isInComparison(card.id);
+
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Navigation */}
       <nav className="border-b border-gray-800 sticky top-0 bg-gray-950/80 backdrop-blur-sm z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link 
             to="/"
             className="inline-flex items-center text-purple-400 hover:text-purple-300 transition-colors"
@@ -75,6 +85,19 @@ const CardDetail = () => {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to search
           </Link>
+          
+          <button
+            onClick={handleAddToComparison}
+            disabled={inComparison}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              inComparison 
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
+            }`}
+          >
+            {inComparison ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {inComparison ? 'Added to Compare' : 'Add to Compare'}
+          </button>
         </div>
       </nav>
 
@@ -188,18 +211,33 @@ const CardDetail = () => {
           </section>
         )}
 
-        {/* Key Benefits Section */}
+        {/* Key Benefits Section - Improved */}
         {card.features && card.features.length > 0 && (
           <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <Award className="h-6 w-6 text-yellow-400" />
-              Key Benefits & Features
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <Award className="h-6 w-6 text-yellow-400" />
+                Key Benefits & Features
+              </h2>
+              {card.features.length > 6 && (
+                <button
+                  onClick={() => setExpandedFeatures(!expandedFeatures)}
+                  className="text-purple-400 hover:text-purple-300 text-sm font-medium"
+                >
+                  {expandedFeatures ? 'Show Less' : `Show All ${card.features.length} Features`}
+                </button>
+              )}
+            </div>
+            
             <div className="grid gap-4">
-              {card.features.map((feature, index) => (
-                <div key={index} className="flex items-start gap-4 p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 hover:border-purple-500/30 transition-colors">
-                  <CheckCircle className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
-                  <p className="text-gray-200 leading-relaxed">{feature}</p>
+              {(expandedFeatures ? card.features : card.features.slice(0, 6)).map((feature, index) => (
+                <div key={index} className="flex items-start gap-4 p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 hover:border-purple-500/30 transition-colors group">
+                  <div className="flex-shrink-0 w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center group-hover:bg-green-500/30 transition-colors">
+                    <CheckCircle className="h-4 w-4 text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-gray-200 leading-relaxed">{feature}</p>
+                  </div>
                 </div>
               ))}
             </div>

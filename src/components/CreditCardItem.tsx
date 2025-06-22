@@ -1,14 +1,17 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Gift, Plane, Fuel, ShoppingBag, Star } from 'lucide-react';
+import { ArrowRight, Gift, Plane, Fuel, ShoppingBag, Star, Plus, Check } from 'lucide-react';
 import { CreditCard } from '../types/card';
+import { useComparison } from '../contexts/ComparisonContext';
 
 interface CreditCardItemProps {
   card: CreditCard;
 }
 
 export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
+  const { addToComparison, isInComparison } = useComparison();
+
   const getTagIcon = (tag: string) => {
     switch (tag) {
       case 'airport-lounge': return <Plane className="h-4 w-4" />;
@@ -31,7 +34,6 @@ export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
     }
   };
 
-  // Helper function to safely convert tag to string
   const getTagString = (tag: any): string => {
     if (typeof tag === 'string') {
       return tag;
@@ -42,8 +44,29 @@ export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
     return String(tag);
   };
 
+  const handleAddToComparison = (e: React.MouseEvent) => {
+    e.preventDefault();
+    addToComparison(card);
+  };
+
+  const inComparison = isInComparison(card.id);
+
   return (
     <div className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6 hover:border-purple-500/30 transition-all duration-300 hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/10">
+      {/* Add to Compare Button */}
+      <button
+        onClick={handleAddToComparison}
+        disabled={inComparison}
+        className={`absolute top-4 right-4 z-10 p-2 rounded-full transition-all ${
+          inComparison 
+            ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+            : 'bg-gray-800/80 hover:bg-purple-500/20 text-gray-400 hover:text-purple-400 border border-gray-700/50 hover:border-purple-500/30'
+        }`}
+        title={inComparison ? 'Added to comparison' : 'Add to comparison'}
+      >
+        {inComparison ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+      </button>
+
       {/* Card Image */}
       <div className="relative mb-6">
         {card.image ? (
