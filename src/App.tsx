@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import CardDetail from "./pages/CardDetail";
 import Search from "./pages/Search";
 import NotFound from "./pages/NotFound";
+import ChatWidget from "./components/ChatWidget";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        <ChatWidget />
       </TooltipProvider>
     </ComparisonProvider>
   </QueryClientProvider>
