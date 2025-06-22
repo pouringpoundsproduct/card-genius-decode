@@ -52,15 +52,15 @@ class CardService {
       }
 
       const result = await response.json();
-      console.log('Raw banks/tags API response:', result);
+      console.log('Banks/tags API response:', result);
       
       if (result.success && result.data) {
-        banksCache = result.data.banks || [];
-        tagsCache = result.data.tags || [];
+        banksCache = Array.isArray(result.data.banks) ? result.data.banks : [];
+        tagsCache = Array.isArray(result.data.tags) ? result.data.tags : [];
         cacheInitialized = true;
         console.log('Banks and tags cached:', { banks: banksCache.length, tags: tagsCache.length });
       } else {
-        console.warn('No data in banks/tags response, using fallbacks');
+        console.warn('Invalid banks/tags response structure');
         banksCache = [];
         tagsCache = [];
       }
@@ -68,21 +68,9 @@ class CardService {
       return { banks: banksCache, tags: tagsCache };
     } catch (error) {
       console.error('Error fetching banks and tags:', error);
-      // Provide fallback data
-      banksCache = [
-        { id: '1', name: 'HDFC Bank' },
-        { id: '2', name: 'SBI' },
-        { id: '3', name: 'ICICI Bank' },
-        { id: '4', name: 'Axis Bank' },
-        { id: '5', name: 'Kotak Mahindra Bank' }
-      ];
-      tagsCache = [
-        { id: '1', name: 'Fuel', slug: 'fuel' },
-        { id: '2', name: 'Shopping', slug: 'shopping' },
-        { id: '3', name: 'Airport Lounge', slug: 'airport-lounge' },
-        { id: '4', name: 'Cashback', slug: 'cashback' },
-        { id: '5', name: 'Travel', slug: 'travel' }
-      ];
+      // Provide minimal fallback data
+      banksCache = [];
+      tagsCache = [];
       return { banks: banksCache, tags: tagsCache };
     }
   }
@@ -98,8 +86,6 @@ class CardService {
         credit_score: params.credit_score || "",
         sort_by: params.sort_by || "",
         free_cards: params.free_cards || "",
-        page: params.page || 1,
-        limit: params.limit || 20,
         eligiblityPayload: params.eligiblityPayload || {},
         cardGeniusPayload: params.cardGeniusPayload || {}
       };
@@ -117,7 +103,7 @@ class CardService {
       }
 
       const result = await response.json();
-      console.log('Raw cards API response:', result);
+      console.log('Cards API response:', result);
 
       if (result.success && result.data && Array.isArray(result.data)) {
         const cards = result.data.map((card: any) => this.transformCard(card));
@@ -126,8 +112,8 @@ class CardService {
         return {
           data: cards,
           total: result.total_records || result.data.length,
-          page: result.current_page || params.page || 1,
-          limit: result.per_page || params.limit || 20,
+          page: result.current_page || 1,
+          limit: result.per_page || 20,
           hasMore: result.has_more_pages || false
         };
       }
@@ -142,32 +128,76 @@ class CardService {
 
   private transformCard(apiCard: any): CreditCard {
     // Find the bank info from the cached banks data
-    const bankInfo = banksCache.find(bank => bank.id === apiCard.bank_id);
+    const bankInfo = banksCache.find(bank => 
+      bank.id === apiCard.bank_id || 
+      bank.id === String(apiCard.bank_id) ||
+      bank.name === apiCard.bank_name
+    );
     
     return {
       id: apiCard.id || apiCard.card_id || Math.random().toString(),
-      name: apiCard.name || apiCard.card_name || 'Unknown Card',
-      nick_name: apiCard.nick_name || '',
+      name: apiCard.name || apiCard.card_name || 'Credit Card',
+      nick_name: apiCard.nick_name || apiCard.nickname || '',
       slug: apiCard.slug || apiCard.id || Math.random().toString(),
-      image: apiCard.image || apiCard.card_image || '',
-      bank_name: bankInfo?.name || apiCard.bank_name || 'Unknown Bank',
+      image: apiCard.image || apiCard.card_image || apiCard.img_url || '',
+      bank_name: bankInfo?.name || apiCard.bank_name || 'Bank',
       bank_id: apiCard.bank_id || '',
-      joining_fee: apiCard.joining_fee || 0,
-      annual_fee: apiCard.annual_fee || 0,
-      welcome_offer: apiCard.welcome_offer || apiCard.welcome_bonus || '',
-      features: Array.isArray(apiCard.features) ? apiCard.features : 
-                Array.isArray(apiCard.benefits) ? apiCard.benefits : [],
-      tags: Array.isArray(apiCard.tags) ? apiCard.tags : [],
-      cashback_rate: apiCard.cashback_rate || '',
-      reward_rate: apiCard.reward_rate || apiCard.rewards || '',
-      eligibility: Array.isArray(apiCard.eligibility) ? apiCard.eligibility : 
-                   Array.isArray(apiCard.eligibility_criteria) ? apiCard.eligibility_criteria : [],
-      other_info: Array.isArray(apiCard.other_info) ? apiCard.other_info : 
-                  Array.isArray(apiCard.additional_info) ? apiCard.additional_info : [],
-      lounge_access: apiCard.lounge_access || apiCard.airport_lounge || false,
-      apply_url: apiCard.apply_url || apiCard.application_url || '',
+      joining_fee: apiCard.joining_fee || apiCard.joiningFee || 0,
+      annual_fee: apiCard.annual_fee || apiCard.annualFee || 0,
+      welcome_offer: apiCard.welcome_offer || apiCard.welcome_bonus || apiCard.welcomeOffer || '',
+      features: this.extractFeatures(apiCard),
+      tags: this.extractTags(apiCard),
+      cashback_rate: apiCard.cashback_rate || apiCard.cashbackRate || '',
+      reward_rate: apiCard.reward_rate || apiCard.rewardRate || apiCard.rewards || '',
+      eligibility: this.extractEligibility(apiCard),
+      other_info: this.extractOtherInfo(apiCard),
+      lounge_access: apiCard.lounge_access || apiCard.loungeAccess || apiCard.airport_lounge || false,
+      apply_url: apiCard.apply_url || apiCard.applyUrl || apiCard.application_url || '',
       relevanceScore: 0
     };
+  }
+
+  private extractFeatures(apiCard: any): string[] {
+    const features = [];
+    if (Array.isArray(apiCard.features)) features.push(...apiCard.features);
+    if (Array.isArray(apiCard.benefits)) features.push(...apiCard.benefits);
+    if (Array.isArray(apiCard.key_features)) features.push(...apiCard.key_features);
+    if (apiCard.description) features.push(apiCard.description);
+    return features.filter(f => f && typeof f === 'string');
+  }
+
+  private extractTags(apiCard: any): string[] {
+    const tags = [];
+    if (Array.isArray(apiCard.tags)) {
+      tags.push(...apiCard.tags.map(tag => 
+        typeof tag === 'string' ? tag : (tag.name || tag.slug || tag.id)
+      ));
+    }
+    if (Array.isArray(apiCard.categories)) {
+      tags.push(...apiCard.categories.map(cat => 
+        typeof cat === 'string' ? cat : (cat.name || cat.slug || cat.id)
+      ));
+    }
+    return tags.filter(t => t && typeof t === 'string');
+  }
+
+  private extractEligibility(apiCard: any): string[] {
+    const eligibility = [];
+    if (Array.isArray(apiCard.eligibility)) eligibility.push(...apiCard.eligibility);
+    if (Array.isArray(apiCard.eligibility_criteria)) eligibility.push(...apiCard.eligibility_criteria);
+    if (apiCard.min_income) eligibility.push(`Minimum Income: ₹${apiCard.min_income}`);
+    if (apiCard.min_age) eligibility.push(`Minimum Age: ${apiCard.min_age} years`);
+    if (apiCard.credit_score) eligibility.push(`Credit Score: ${apiCard.credit_score}+`);
+    return eligibility.filter(e => e && typeof e === 'string');
+  }
+
+  private extractOtherInfo(apiCard: any): string[] {
+    const info = [];
+    if (Array.isArray(apiCard.other_info)) info.push(...apiCard.other_info);
+    if (Array.isArray(apiCard.additional_info)) info.push(...apiCard.additional_info);
+    if (apiCard.terms_conditions) info.push(apiCard.terms_conditions);
+    if (apiCard.processing_time) info.push(`Processing Time: ${apiCard.processing_time}`);
+    return info.filter(i => i && typeof i === 'string');
   }
 
   async getBanksAndTags() {
@@ -189,10 +219,9 @@ class CardService {
       await this.fetchBanksAndTags();
 
       const params: CardSearchParams = {
-        page,
-        limit,
         banks_ids: selectedBankIds,
         free_cards: freeCards ? "true" : "",
+        sort_by: query ? "relevance" : "popular"
       };
 
       const response = await this.fetchCards(params);
@@ -228,7 +257,7 @@ class CardService {
         }));
       }
 
-      console.log('Search results:', cards.length, 'cards found');
+      console.log('Final search results:', cards.length, 'cards found');
       return cards;
     } catch (error) {
       console.error('Error in searchCards:', error);
@@ -239,11 +268,17 @@ class CardService {
   async getAllCards(page: number = 1, limit: number = 20): Promise<{cards: CreditCard[], hasMore: boolean, total: number}> {
     try {
       await this.fetchBanksAndTags();
-      const response = await this.fetchCards({ page, limit });
+      const response = await this.fetchCards({ sort_by: "popular" });
+      
+      // Implement client-side pagination for now
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedCards = response.data.slice(startIndex, endIndex);
+      
       return {
-        cards: response.data,
-        hasMore: response.hasMore,
-        total: response.total
+        cards: paginatedCards,
+        hasMore: endIndex < response.data.length,
+        total: response.data.length
       };
     } catch (error) {
       console.error('Error loading all cards:', error);
@@ -254,11 +289,10 @@ class CardService {
   async getFeaturedCards(): Promise<CreditCard[]> {
     try {
       await this.fetchBanksAndTags();
-      const response = await this.fetchCards({ limit: 6, sort_by: 'featured' });
-      return response.data;
+      const response = await this.fetchCards({ sort_by: "featured" });
+      return response.data.slice(0, 6); // Return first 6 cards as featured
     } catch (error) {
       console.error('Error loading featured cards:', error);
-      // Return empty array instead of throwing to prevent app crash
       return [];
     }
   }
@@ -267,7 +301,16 @@ class CardService {
     try {
       await this.fetchBanksAndTags();
       const response = await this.fetchCards({ slug });
-      return response.data.length > 0 ? response.data[0] : null;
+      
+      if (response.data.length > 0) {
+        return response.data[0];
+      }
+      
+      // If slug search fails, try to find by ID
+      const allCardsResponse = await this.fetchCards({});
+      const card = allCardsResponse.data.find(c => c.slug === slug || c.id === slug);
+      
+      return card || null;
     } catch (error) {
       console.error('Error loading card details:', error);
       return null;

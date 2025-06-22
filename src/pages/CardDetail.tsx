@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
@@ -15,7 +14,7 @@ const CardDetail = () => {
   const { getCardDetails, loading, error } = useCardData();
   const [card, setCard] = useState<CreditCardType | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    features: false,
+    features: true,
     eligibility: false,
     otherInfo: false
   });
@@ -75,6 +74,14 @@ const CardDetail = () => {
       </div>
     );
   }
+
+  // Helper function to safely format fee values
+  const formatFee = (fee: number | string) => {
+    if (fee === 0 || fee === '0' || !fee) {
+      return <span className="text-green-400">FREE</span>;
+    }
+    return `₹${fee}`;
+  };
 
   const ExpandableSection: React.FC<{
     title: string;
@@ -138,6 +145,10 @@ const CardDetail = () => {
                 {card.name}
               </h1>
               
+              {card.nick_name && (
+                <p className="text-gray-300 text-lg mb-4">{card.nick_name}</p>
+              )}
+              
               {/* Tags */}
               {card.tags && card.tags.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-6">
@@ -173,15 +184,19 @@ const CardDetail = () => {
                   src={card.image} 
                   alt={card.name}
                   className="w-full max-w-md h-64 object-contain rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 mx-auto"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
                 />
-              ) : (
-                <div className="w-full max-w-md h-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center mx-auto">
-                  <div className="text-center">
-                    <CreditCard className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-500">{card.bank_name}</p>
-                  </div>
+              ) : null}
+              <div className={`w-full max-w-md h-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center mx-auto ${card.image ? 'hidden' : ''}`}>
+                <div className="text-center">
+                  <CreditCard className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-500">{card.bank_name}</p>
+                  <p className="text-gray-400 text-sm">{card.name}</p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </section>
@@ -199,11 +214,7 @@ const CardDetail = () => {
                 <h3 className="font-semibold text-blue-400">Joining Fee</h3>
               </div>
               <p className="text-2xl font-bold text-white">
-                {card.joining_fee === 0 || card.joining_fee === '0' ? (
-                  <span className="text-green-400">FREE</span>
-                ) : (
-                  `₹${card.joining_fee}`
-                )}
+                {formatFee(card.joining_fee)}
               </p>
             </div>
             <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/30">
@@ -212,11 +223,7 @@ const CardDetail = () => {
                 <h3 className="font-semibold text-orange-400">Annual Fee</h3>
               </div>
               <p className="text-2xl font-bold text-white">
-                {card.annual_fee === 0 || card.annual_fee === '0' ? (
-                  <span className="text-green-400">FREE</span>
-                ) : (
-                  `₹${card.annual_fee}`
-                )}
+                {formatFee(card.annual_fee)}
               </p>
             </div>
           </div>
