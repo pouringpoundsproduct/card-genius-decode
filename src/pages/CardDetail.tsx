@@ -1,7 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Gift, Star, CreditCard, ExternalLink, Shield, Percent, Calendar, Users } from 'lucide-react';
+import { 
+  ArrowLeft, ArrowRight, Gift, Star, CreditCard, ExternalLink, 
+  Shield, Percent, Calendar, Users, Award, Plane, DollarSign,
+  Clock, AlertCircle, CheckCircle, Info
+} from 'lucide-react';
 import { useCardData } from '../hooks/useCardData';
 import { CreditCard as CreditCardType } from '../types/card';
 
@@ -74,19 +78,57 @@ const CardDetail = () => {
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-6 py-12">
-        {/* Card Header */}
-        <div className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 backdrop-blur-sm border border-gray-800/50 rounded-3xl p-8 mb-12">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
-            <div>
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        {/* Card Overview Section */}
+        <section className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 backdrop-blur-sm border border-gray-800/50 rounded-3xl p-8 mb-8">
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
+            <div className="order-2 lg:order-1">
+              <div className="flex items-center gap-3 mb-4">
+                <CreditCard className="h-6 w-6 text-purple-400" />
+                <span className="text-purple-400 font-medium">{card.bank_name}</span>
+              </div>
+              <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                {card.name}
+              </h1>
+              
+              {/* Tags */}
+              {card.tags && card.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {card.tags.map((tag, index) => (
+                    <span 
+                      key={index}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium border border-purple-500/30"
+                    >
+                      <Star className="h-3 w-3" />
+                      {typeof tag === 'string' ? tag.replace('-', ' ').toUpperCase() : String(tag)}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Apply Button */}
+              {card.apply_url && (
+                <a
+                  href={card.apply_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all inline-flex items-center gap-2 transform hover:scale-105 shadow-lg"
+                >
+                  Apply Now
+                  <ArrowRight className="h-5 w-5" />
+                </a>
+              )}
+            </div>
+            
+            <div className="order-1 lg:order-2">
               {card.image ? (
                 <img 
                   src={card.image} 
                   alt={card.name}
-                  className="w-full max-w-sm h-64 object-contain rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900"
+                  className="w-full max-w-md h-64 object-contain rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 mx-auto"
                 />
               ) : (
-                <div className="w-full max-w-sm h-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center">
+                <div className="w-full max-w-md h-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center mx-auto">
                   <div className="text-center">
                     <CreditCard className="h-16 w-16 text-gray-600 mx-auto mb-4" />
                     <p className="text-gray-500">{card.bank_name}</p>
@@ -94,162 +136,169 @@ const CardDetail = () => {
                 </div>
               )}
             </div>
-            
-            <div className="space-y-6">
-              <div>
-                <p className="text-purple-400 font-medium mb-2">{card.bank_name}</p>
-                <h1 className="text-3xl font-bold mb-4">{card.name}</h1>
-                
-                {/* Fee Structure */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="bg-gray-800/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <p className="text-gray-400 text-sm">Joining Fee</p>
-                    </div>
-                    <p className="text-white font-bold text-lg">
-                      {card.joining_fee === 0 || card.joining_fee === '0' ? 'FREE' : `₹${card.joining_fee}`}
-                    </p>
-                  </div>
-                  <div className="bg-gray-800/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Percent className="h-4 w-4 text-gray-400" />
-                      <p className="text-gray-400 text-sm">Annual Fee</p>
-                    </div>
-                    <p className="text-white font-bold text-lg">
-                      {card.annual_fee === 0 || card.annual_fee === '0' ? 'FREE' : `₹${card.annual_fee}`}
-                    </p>
-                  </div>
-                </div>
+          </div>
+        </section>
 
-                {/* Tags */}
-                {card.tags && card.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-6">
-                    {card.tags.map((tag, index) => (
-                      <span 
-                        key={index}
-                        className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium border border-purple-500/30"
-                      >
-                        <Star className="h-3 w-3" />
-                        {typeof tag === 'string' ? tag.replace('-', ' ').toUpperCase() : String(tag)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Apply Button */}
-                {card.apply_url && (
-                  <a
-                    href={card.apply_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all inline-flex items-center gap-2 transform hover:scale-105"
-                  >
-                    Apply Now
-                    <ArrowRight className="h-5 w-5" />
-                  </a>
-                )}
+        {/* Fee Structure Section */}
+        <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+            <DollarSign className="h-6 w-6 text-green-400" />
+            Fee Structure
+          </h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/30">
+              <div className="flex items-center gap-3 mb-3">
+                <Calendar className="h-5 w-5 text-blue-400" />
+                <h3 className="font-semibold text-blue-400">Joining Fee</h3>
               </div>
+              <p className="text-2xl font-bold text-white">
+                {card.joining_fee === 0 || card.joining_fee === '0' ? (
+                  <span className="text-green-400">FREE</span>
+                ) : (
+                  `₹${card.joining_fee}`
+                )}
+              </p>
+            </div>
+            <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/30">
+              <div className="flex items-center gap-3 mb-3">
+                <Percent className="h-5 w-5 text-orange-400" />
+                <h3 className="font-semibold text-orange-400">Annual Fee</h3>
+              </div>
+              <p className="text-2xl font-bold text-white">
+                {card.annual_fee === 0 || card.annual_fee === '0' ? (
+                  <span className="text-green-400">FREE</span>
+                ) : (
+                  `₹${card.annual_fee}`
+                )}
+              </p>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Welcome Offer */}
+        {/* Welcome Offer Section */}
         {card.welcome_offer && (
-          <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8 mb-12">
+          <section className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8 mb-8">
             <div className="flex items-center mb-4">
               <Gift className="h-6 w-6 text-purple-400 mr-3" />
               <h2 className="text-2xl font-bold">Welcome Offer</h2>
             </div>
-            <p className="text-lg text-gray-200">{card.welcome_offer}</p>
-          </div>
+            <div className="bg-purple-500/10 rounded-xl p-6 border border-purple-500/20">
+              <p className="text-lg text-gray-200 leading-relaxed">{card.welcome_offer}</p>
+            </div>
+          </section>
         )}
 
-        {/* Key Features */}
+        {/* Key Benefits Section */}
         {card.features && card.features.length > 0 && (
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-12">
+          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <Star className="h-6 w-6 text-purple-400" />
-              Key Features
+              <Award className="h-6 w-6 text-yellow-400" />
+              Key Benefits & Features
             </h2>
             <div className="grid gap-4">
               {card.features.map((feature, index) => (
-                <div key={index} className="flex items-start gap-3 p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-                  <Star className="h-5 w-5 text-purple-400 mt-0.5 flex-shrink-0" />
+                <div key={index} className="flex items-start gap-4 p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 hover:border-purple-500/30 transition-colors">
+                  <CheckCircle className="h-5 w-5 text-green-400 mt-1 flex-shrink-0" />
                   <p className="text-gray-200 leading-relaxed">{feature}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Eligibility Criteria */}
-        {card.eligibility && card.eligibility.length > 0 && (
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <Users className="h-6 w-6 text-green-400" />
-              Eligibility Criteria
-            </h2>
-            <div className="grid gap-3">
-              {card.eligibility.map((criteria, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <Shield className="h-4 w-4 text-green-400 flex-shrink-0" />
-                  <p className="text-gray-200">{criteria}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Additional Information */}
-        {card.other_info && card.other_info.length > 0 && (
-          <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-12">
-            <h2 className="text-2xl font-bold mb-6">Additional Information</h2>
-            <div className="space-y-4">
-              {card.other_info.map((info, index) => (
-                <div key={index} className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-                  <p className="text-gray-200 leading-relaxed">{info}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Reward Information */}
+        {/* Reward Structure Section */}
         {(card.cashback_rate || card.reward_rate) && (
-          <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-8 mb-12">
+          <section className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 backdrop-blur-sm border border-blue-500/20 rounded-2xl p-8 mb-8">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
               <Percent className="h-6 w-6 text-blue-400" />
               Reward Structure
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
               {card.cashback_rate && (
-                <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/20">
-                  <h3 className="font-semibold text-blue-400 mb-2">Cashback Rate</h3>
-                  <p className="text-gray-200">{card.cashback_rate}</p>
+                <div className="bg-blue-500/10 rounded-xl p-6 border border-blue-500/20">
+                  <h3 className="font-semibold text-blue-400 mb-3 flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Cashback Rate
+                  </h3>
+                  <p className="text-gray-200 text-lg">{card.cashback_rate}</p>
                 </div>
               )}
               {card.reward_rate && (
-                <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/20">
-                  <h3 className="font-semibold text-purple-400 mb-2">Reward Rate</h3>
-                  <p className="text-gray-200">{card.reward_rate}</p>
+                <div className="bg-purple-500/10 rounded-xl p-6 border border-purple-500/20">
+                  <h3 className="font-semibold text-purple-400 mb-3 flex items-center gap-2">
+                    <Award className="h-5 w-5" />
+                    Reward Rate
+                  </h3>
+                  <p className="text-gray-200 text-lg">{card.reward_rate}</p>
                 </div>
               )}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Bottom CTA */}
-        <div className="text-center bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8">
-          <h3 className="text-2xl font-bold mb-4">Ready to unlock your card's potential?</h3>
-          <p className="text-gray-300 mb-6">Join thousands who've discovered their perfect credit card match.</p>
+        {/* Eligibility Criteria Section */}
+        {card.eligibility && card.eligibility.length > 0 && (
+          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Users className="h-6 w-6 text-green-400" />
+              Eligibility Criteria
+            </h2>
+            <div className="grid gap-3">
+              {card.eligibility.map((criteria, index) => (
+                <div key={index} className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl border border-green-500/20">
+                  <Shield className="h-5 w-5 text-green-400 flex-shrink-0" />
+                  <p className="text-gray-200">{criteria}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Additional Information Section */}
+        {card.other_info && card.other_info.length > 0 && (
+          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Info className="h-6 w-6 text-blue-400" />
+              Additional Information
+            </h2>
+            <div className="space-y-4">
+              {card.other_info.map((info, index) => (
+                <div key={index} className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30">
+                  <p className="text-gray-200 leading-relaxed">{info}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Airport Lounge Access */}
+        {card.lounge_access && (
+          <section className="bg-gradient-to-r from-indigo-900/30 to-purple-900/30 backdrop-blur-sm border border-indigo-500/20 rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-3">
+              <Plane className="h-6 w-6 text-indigo-400" />
+              Airport Lounge Access
+            </h2>
+            <div className="flex items-center gap-3 p-4 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
+              <CheckCircle className="h-5 w-5 text-indigo-400" />
+              <p className="text-gray-200">This card provides airport lounge access benefits</p>
+            </div>
+          </section>
+        )}
+
+        {/* Bottom CTA Section */}
+        <section className="text-center bg-gradient-to-r from-purple-900/30 to-blue-900/30 backdrop-blur-sm border border-purple-500/20 rounded-2xl p-8">
+          <Award className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+          <h3 className="text-3xl font-bold mb-4">Ready to unlock your card's potential?</h3>
+          <p className="text-gray-300 mb-8 text-lg max-w-2xl mx-auto">
+            Join thousands who've discovered their perfect credit card match with {card.name}.
+          </p>
           <div className="flex gap-4 justify-center flex-wrap">
             {card.apply_url && (
               <a
                 href={card.apply_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all inline-flex items-center gap-2"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all inline-flex items-center gap-2 shadow-lg transform hover:scale-105"
               >
                 Apply Now
                 <ExternalLink className="h-5 w-5" />
@@ -257,12 +306,12 @@ const CardDetail = () => {
             )}
             <Link
               to="/"
-              className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-4 rounded-lg font-semibold text-lg transition-all"
+              className="bg-gray-800 hover:bg-gray-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all"
             >
               Compare More Cards
             </Link>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

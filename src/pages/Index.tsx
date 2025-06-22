@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -5,6 +6,7 @@ import { SearchBar } from '../components/SearchBar';
 import { CardGrid } from '../components/CardGrid';
 import { TagFilters } from '../components/TagFilters';
 import { FeaturedCards } from '../components/FeaturedCards';
+import { BankSelector } from '../components/BankSelector';
 import { useCardData } from '../hooks/useCardData';
 
 const Index = () => {
@@ -24,33 +26,35 @@ const Index = () => {
     initializeData();
   }, [loadBanksAndTags, loadAllCards]);
 
-  const handleSearch = (query: string) => {
+  const handleSearch = async (query: string) => {
     setSearchQuery(query);
-    searchCards(query, selectedTags, selectedBankIds, showFreeCards);
+    if (query.trim()) {
+      await searchCards(query, selectedTags, selectedBankIds, showFreeCards);
+    }
   };
 
-  const handleTagSelect = (tagSlug: string) => {
+  const handleTagSelect = async (tagSlug: string) => {
     const newTags = selectedTags.includes(tagSlug) 
       ? selectedTags.filter(t => t !== tagSlug)
       : [...selectedTags, tagSlug];
     
     setSelectedTags(newTags);
-    searchCards(searchQuery, newTags, selectedBankIds, showFreeCards);
+    await searchCards(searchQuery, newTags, selectedBankIds, showFreeCards);
   };
 
-  const handleBankSelect = (bankId: string) => {
+  const handleBankSelect = async (bankId: string) => {
     const newBankIds = selectedBankIds.includes(bankId)
       ? selectedBankIds.filter(id => id !== bankId)
       : [...selectedBankIds, bankId];
     
     setSelectedBankIds(newBankIds);
-    searchCards(searchQuery, selectedTags, newBankIds, showFreeCards);
+    await searchCards(searchQuery, selectedTags, newBankIds, showFreeCards);
   };
 
-  const handleFreeCardsToggle = () => {
+  const handleFreeCardsToggle = async () => {
     const newShowFreeCards = !showFreeCards;
     setShowFreeCards(newShowFreeCards);
-    searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
+    await searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
   };
 
   const hasActiveFilters = searchQuery || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards;
@@ -85,6 +89,7 @@ const Index = () => {
               value={searchQuery}
               onChange={handleSearch}
               placeholder="Search credit cards or banks..."
+              debounceMs={500}
             />
           </div>
         </div>
@@ -93,55 +98,71 @@ const Index = () => {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </section>
 
-      {/* Tag Filters */}
-      <section className="px-6 py-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center mb-6">
-            <Filter className="h-5 w-5 text-purple-400 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-200">Quick Filters</h3>
+      {/* Quick Filters Section */}
+      {tags.length > 0 && (
+        <section className="px-6 py-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center mb-6">
+              <Filter className="h-5 w-5 text-purple-400 mr-2" />
+              <h3 className="text-lg font-semibold text-gray-200">Quick Filters</h3>
+            </div>
+            <TagFilters 
+              selectedTags={selectedTags}
+              onTagSelect={handleTagSelect}
+              availableTags={tags}
+            />
           </div>
-          <TagFilters 
-            selectedTags={selectedTags}
-            onTagSelect={handleTagSelect}
-            availableTags={tags}
-          />
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Advanced Filters */}
       {hasActiveFilters && (
         <section className="px-6 py-4">
           <div className="max-w-7xl mx-auto">
-            <div className="flex flex-wrap items-center gap-4 mb-4">
-              {/* Free Cards Toggle */}
-              <button
-                onClick={handleFreeCardsToggle}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-                  showFreeCards
-                    ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                    : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
-                }`}
-              >
-                Free Cards Only
-              </button>
+            <div className="bg-gray-900/30 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6">
+              <div className="flex flex-wrap items-center gap-4 mb-4">
+                {/* Free Cards Toggle */}
+                <button
+                  onClick={handleFreeCardsToggle}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                    showFreeCards
+                      ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                      : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
+                  }`}
+                >
+                  {showFreeCards ? '✓ ' : ''}Free Cards Only
+                </button>
 
-              {/* Bank Filters */}
-              {banks.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  <span className="text-gray-400 text-sm mr-2">Banks:</span>
-                  {banks.slice(0, 6).map((bank) => (
-                    <button
-                      key={bank.id}
-                      onClick={() => handleBankSelect(bank.id)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-all border ${
-                        selectedBankIds.includes(bank.id)
-                          ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                          : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
-                      }`}
-                    >
-                      {bank.name}
-                    </button>
-                  ))}
+                {/* Bank Filters */}
+                {banks.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-gray-400 text-sm mr-2">Banks:</span>
+                    {banks.slice(0, 6).map((bank) => (
+                      <button
+                        key={bank.id}
+                        onClick={() => handleBankSelect(bank.id)}
+                        className={`px-3 py-1 rounded-full text-sm font-medium transition-all border ${
+                          selectedBankIds.includes(bank.id)
+                            ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                            : 'bg-gray-800/50 text-gray-300 border-gray-700/50 hover:bg-gray-700/50'
+                        }`}
+                      >
+                        {bank.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Show more banks option */}
+              {banks.length > 6 && (
+                <div className="mt-4">
+                  <BankSelector
+                    selectedBankIds={selectedBankIds}
+                    onBankSelect={handleBankSelect}
+                    availableBanks={banks.slice(6)}
+                    className="max-h-32"
+                  />
                 </div>
               )}
             </div>
