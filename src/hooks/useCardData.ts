@@ -65,19 +65,21 @@ export const useCardData = () => {
     }
   }, []);
 
-  const loadAllCards = useCallback(async () => {
+  const loadAllCards = useCallback(async (page: number = 1, limit: number = 20) => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('Loading all cards...');
-      const allCards = await cardService.getAllCards();
-      console.log('All cards loaded:', allCards.length, 'cards');
-      setCards(allCards);
+      console.log('Loading all cards...', { page, limit });
+      const result = await cardService.getAllCards(page, limit);
+      console.log('All cards loaded:', result.cards.length, 'cards');
+      setCards(result.cards);
       setInitialized(true);
+      return result;
     } catch (err) {
       console.error('Error loading all cards:', err);
       setError('Unable to load cards. Please check your connection and try again.');
+      return { cards: [], hasMore: false, total: 0 };
     } finally {
       setLoading(false);
     }

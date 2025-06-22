@@ -10,6 +10,8 @@ interface FeaturedCardsProps {
 }
 
 export const FeaturedCards: React.FC<FeaturedCardsProps> = ({ cards, loading }) => {
+  console.log('FeaturedCards received cards:', cards, 'type:', typeof cards, 'isArray:', Array.isArray(cards));
+
   if (loading) {
     return (
       <div className="space-y-12">
@@ -37,7 +39,9 @@ export const FeaturedCards: React.FC<FeaturedCardsProps> = ({ cards, loading }) 
     );
   }
 
-  const featuredCards = cards.slice(0, 6);
+  // Ensure cards is always an array
+  const safeCards = Array.isArray(cards) ? cards : [];
+  const featuredCards = safeCards.slice(0, 6);
 
   return (
     <div className="space-y-12">
@@ -72,10 +76,10 @@ export const FeaturedCards: React.FC<FeaturedCardsProps> = ({ cards, loading }) 
       )}
 
       {/* Show More Section */}
-      {cards.length > 6 && (
+      {safeCards.length > 6 && (
         <div className="text-center">
           <button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-            Explore All {cards.length} Cards
+            Explore All {safeCards.length} Cards
           </button>
         </div>
       )}

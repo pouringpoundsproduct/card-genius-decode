@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -77,7 +78,9 @@ const Index = () => {
   const handlePageChange = async (page: number) => {
     setCurrentPage(page);
     try {
-      await loadAllCards(page, 20);
+      const result = await loadAllCards(page, 20);
+      setTotalCards(result.total);
+      setHasMoreCards(result.hasMore);
     } catch (error) {
       console.error('Error loading page:', error);
     }
