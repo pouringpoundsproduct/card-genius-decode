@@ -1,23 +1,18 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ArrowLeft, ArrowRight, Gift, Star, CreditCard, ExternalLink, 
   Shield, Percent, Calendar, Users, Award, Plane, DollarSign,
-  Clock, AlertCircle, CheckCircle, Info, ChevronDown, ChevronUp
+  Clock, AlertCircle, CheckCircle, Info
 } from 'lucide-react';
 import { useCardData } from '../hooks/useCardData';
 import { CreditCard as CreditCardType } from '../types/card';
-import { ComparisonButton } from '../components/ComparisonButton';
 
 const CardDetail = () => {
   const { slug } = useParams<{ slug: string }>();
   const { getCardDetails, loading, error } = useCardData();
   const [card, setCard] = useState<CreditCardType | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    features: true,
-    eligibility: false,
-    otherInfo: false
-  });
 
   useEffect(() => {
     const loadCard = async () => {
@@ -31,13 +26,6 @@ const CardDetail = () => {
     
     loadCard();
   }, [slug, getCardDetails]);
-
-  const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
 
   if (loading) {
     return (
@@ -75,48 +63,6 @@ const CardDetail = () => {
     );
   }
 
-  // Helper function to safely format fee values
-  const formatFee = (fee: number | string) => {
-    if (fee === 0 || fee === '0' || !fee) {
-      return <span className="text-green-400">FREE</span>;
-    }
-    return `₹${fee}`;
-  };
-
-  const ExpandableSection: React.FC<{
-    title: string;
-    icon: React.ReactNode;
-    children: React.ReactNode;
-    sectionKey: string;
-    itemCount?: number;
-  }> = ({ title, icon, children, sectionKey, itemCount }) => {
-    const isExpanded = expandedSections[sectionKey];
-    
-    return (
-      <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl overflow-hidden">
-        <button
-          onClick={() => toggleSection(sectionKey)}
-          className="w-full p-6 flex items-center justify-between hover:bg-gray-800/30 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            {icon}
-            <h2 className="text-xl font-bold">
-              {title}
-              {itemCount && <span className="text-gray-400 font-normal ml-2">({itemCount})</span>}
-            </h2>
-          </div>
-          {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-        </button>
-        
-        {isExpanded && (
-          <div className="px-6 pb-6">
-            {children}
-          </div>
-        )}
-      </section>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       {/* Navigation */}
@@ -144,10 +90,6 @@ const CardDetail = () => {
               <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                 {card.name}
               </h1>
-              
-              {card.nick_name && (
-                <p className="text-gray-300 text-lg mb-4">{card.nick_name}</p>
-              )}
               
               {/* Tags */}
               {card.tags && card.tags.length > 0 && (
@@ -184,19 +126,15 @@ const CardDetail = () => {
                   src={card.image} 
                   alt={card.name}
                   className="w-full max-w-md h-64 object-contain rounded-2xl bg-gradient-to-br from-gray-800 to-gray-900 mx-auto"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                  }}
                 />
-              ) : null}
-              <div className={`w-full max-w-md h-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center mx-auto ${card.image ? 'hidden' : ''}`}>
-                <div className="text-center">
-                  <CreditCard className="h-16 w-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-500">{card.bank_name}</p>
-                  <p className="text-gray-400 text-sm">{card.name}</p>
+              ) : (
+                <div className="w-full max-w-md h-64 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center mx-auto">
+                  <div className="text-center">
+                    <CreditCard className="h-16 w-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-500">{card.bank_name}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </section>
@@ -214,7 +152,11 @@ const CardDetail = () => {
                 <h3 className="font-semibold text-blue-400">Joining Fee</h3>
               </div>
               <p className="text-2xl font-bold text-white">
-                {formatFee(card.joining_fee)}
+                {card.joining_fee === 0 || card.joining_fee === '0' ? (
+                  <span className="text-green-400">FREE</span>
+                ) : (
+                  `₹${card.joining_fee}`
+                )}
               </p>
             </div>
             <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/30">
@@ -223,7 +165,11 @@ const CardDetail = () => {
                 <h3 className="font-semibold text-orange-400">Annual Fee</h3>
               </div>
               <p className="text-2xl font-bold text-white">
-                {formatFee(card.annual_fee)}
+                {card.annual_fee === 0 || card.annual_fee === '0' ? (
+                  <span className="text-green-400">FREE</span>
+                ) : (
+                  `₹${card.annual_fee}`
+                )}
               </p>
             </div>
           </div>
@@ -244,12 +190,11 @@ const CardDetail = () => {
 
         {/* Key Benefits Section */}
         {card.features && card.features.length > 0 && (
-          <ExpandableSection
-            title="Key Benefits & Features"
-            icon={<Award className="h-6 w-6 text-yellow-400" />}
-            sectionKey="features"
-            itemCount={card.features.length}
-          >
+          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Award className="h-6 w-6 text-yellow-400" />
+              Key Benefits & Features
+            </h2>
             <div className="grid gap-4">
               {card.features.map((feature, index) => (
                 <div key={index} className="flex items-start gap-4 p-4 bg-gray-800/30 rounded-xl border border-gray-700/30 hover:border-purple-500/30 transition-colors">
@@ -258,7 +203,7 @@ const CardDetail = () => {
                 </div>
               ))}
             </div>
-          </ExpandableSection>
+          </section>
         )}
 
         {/* Reward Structure Section */}
@@ -293,12 +238,11 @@ const CardDetail = () => {
 
         {/* Eligibility Criteria Section */}
         {card.eligibility && card.eligibility.length > 0 && (
-          <ExpandableSection
-            title="Eligibility Criteria"
-            icon={<Users className="h-6 w-6 text-green-400" />}
-            sectionKey="eligibility"
-            itemCount={card.eligibility.length}
-          >
+          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Users className="h-6 w-6 text-green-400" />
+              Eligibility Criteria
+            </h2>
             <div className="grid gap-3">
               {card.eligibility.map((criteria, index) => (
                 <div key={index} className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl border border-green-500/20">
@@ -307,17 +251,16 @@ const CardDetail = () => {
                 </div>
               ))}
             </div>
-          </ExpandableSection>
+          </section>
         )}
 
         {/* Additional Information Section */}
         {card.other_info && card.other_info.length > 0 && (
-          <ExpandableSection
-            title="Additional Information"
-            icon={<Info className="h-6 w-6 text-blue-400" />}
-            sectionKey="otherInfo"
-            itemCount={card.other_info.length}
-          >
+          <section className="bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-8 mb-8">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+              <Info className="h-6 w-6 text-blue-400" />
+              Additional Information
+            </h2>
             <div className="space-y-4">
               {card.other_info.map((info, index) => (
                 <div key={index} className="p-4 bg-gray-800/30 rounded-xl border border-gray-700/30">
@@ -325,7 +268,7 @@ const CardDetail = () => {
                 </div>
               ))}
             </div>
-          </ExpandableSection>
+          </section>
         )}
 
         {/* Airport Lounge Access */}
@@ -370,8 +313,6 @@ const CardDetail = () => {
           </div>
         </section>
       </div>
-
-      <ComparisonButton />
     </div>
   );
 };

@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { CardGrid } from '../components/CardGrid';
 import { TagFilters } from '../components/TagFilters';
 import { FeaturedCards } from '../components/FeaturedCards';
 import { BankSelector } from '../components/BankSelector';
-import { ComparisonButton } from '../components/ComparisonButton';
 import { useCardData } from '../hooks/useCardData';
 
 const Index = () => {
@@ -15,36 +14,22 @@ const Index = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
   const [showFreeCards, setShowFreeCards] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showAllCards, setShowAllCards] = useState(false);
-  const [totalCards, setTotalCards] = useState(0);
-  const [hasMoreCards, setHasMoreCards] = useState(false);
-  
-  const { cards, loading, error, banks, tags, initialized, searchCards, loadBanksAndTags, loadAllCards, loadFeaturedCards } = useCardData();
+  const { cards, loading, error, banks, tags, initialized, searchCards, loadBanksAndTags, loadAllCards } = useCardData();
 
   useEffect(() => {
     const initializeData = async () => {
       console.log('Initializing home page data...');
-      try {
-        await loadBanksAndTags();
-        // Load featured cards by default
-        await loadFeaturedCards();
-      } catch (err) {
-        console.error('Error initializing data:', err);
-      }
+      await loadBanksAndTags();
+      await loadAllCards();
     };
     
     initializeData();
-  }, [loadBanksAndTags, loadFeaturedCards]);
+  }, [loadBanksAndTags, loadAllCards]);
 
   const handleSearch = async (query: string) => {
-    console.log('Handling search for:', query);
     setSearchQuery(query);
-    if (query.trim() || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards) {
+    if (query.trim()) {
       await searchCards(query, selectedTags, selectedBankIds, showFreeCards);
-    } else {
-      // If no filters, show featured cards
-      await loadFeaturedCards();
     }
   };
 
@@ -70,30 +55,6 @@ const Index = () => {
     const newShowFreeCards = !showFreeCards;
     setShowFreeCards(newShowFreeCards);
     await searchCards(searchQuery, selectedTags, selectedBankIds, newShowFreeCards);
-  };
-
-  const handleExploreAllCards = async () => {
-    console.log('Exploring all cards...');
-    setShowAllCards(true);
-    setCurrentPage(1);
-    try {
-      const result = await loadAllCards(1, 20);
-      setTotalCards(result.total);
-      setHasMoreCards(result.hasMore);
-    } catch (error) {
-      console.error('Error loading all cards:', error);
-    }
-  };
-
-  const handlePageChange = async (page: number) => {
-    setCurrentPage(page);
-    try {
-      const result = await loadAllCards(page, 20);
-      setTotalCards(result.total);
-      setHasMoreCards(result.hasMore);
-    } catch (error) {
-      console.error('Error loading page:', error);
-    }
   };
 
   const hasActiveFilters = searchQuery || selectedTags.length > 0 || selectedBankIds.length > 0 || showFreeCards;
@@ -160,6 +121,7 @@ const Index = () => {
           <div className="max-w-7xl mx-auto">
             <div className="bg-gray-900/30 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6">
               <div className="flex flex-wrap items-center gap-4 mb-4">
+                {/* Free Cards Toggle */}
                 <button
                   onClick={handleFreeCardsToggle}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
@@ -171,6 +133,7 @@ const Index = () => {
                   {showFreeCards ? '✓ ' : ''}Free Cards Only
                 </button>
 
+                {/* Bank Filters */}
                 {banks.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     <span className="text-gray-400 text-sm mr-2">Banks:</span>
@@ -191,6 +154,7 @@ const Index = () => {
                 )}
               </div>
               
+              {/* Show more banks option */}
               {banks.length > 6 && (
                 <div className="mt-4">
                   <BankSelector
@@ -215,7 +179,7 @@ const Index = () => {
               <h3 className="text-lg font-semibold text-red-400 mb-2">Unable to Load Cards</h3>
               <p className="text-gray-300 mb-4">{error}</p>
               <button 
-                onClick={() => loadFeaturedCards()}
+                onClick={() => loadAllCards()}
                 className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors"
               >
                 Try Again
@@ -246,71 +210,8 @@ const Index = () => {
               </div>
               <CardGrid cards={cards} loading={loading} error={error} />
             </div>
-          ) : showAllCards ? (
-            <div>
-              <div className="flex items-center justify-between mb-8">
-                <h3 className="text-2xl font-bold text-white">
-                  All Credit Cards
-                  <span className="text-gray-400 font-normal text-lg ml-2">
-                    ({totalCards} total cards)
-                  </span>
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowAllCards(false);
-                    loadFeaturedCards();
-                  }}
-                  className="text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  Back to Featured
-                </button>
-              </div>
-              <CardGrid cards={cards} loading={loading} error={error} />
-              
-              {/* Pagination */}
-              {totalCards > 20 && (
-                <div className="flex items-center justify-center gap-4 mt-12">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </button>
-                  
-                  <span className="text-gray-400">
-                    Page {currentPage} of {Math.ceil(totalCards / 20)}
-                  </span>
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={!hasMoreCards}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
           ) : (
-            <div>
-              <FeaturedCards cards={cards} loading={loading} />
-              
-              {/* Explore All Cards Button */}
-              {!loading && cards.length > 0 && (
-                <div className="text-center mt-12">
-                  <button
-                    onClick={handleExploreAllCards}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 inline-flex items-center gap-2"
-                  >
-                    Explore All Cards
-                    <ArrowRight className="h-5 w-5" />
-                  </button>
-                </div>
-              )}
-            </div>
+            <FeaturedCards cards={cards} loading={loading} />
           )}
         </div>
       </section>
@@ -335,8 +236,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-
-      <ComparisonButton />
     </div>
   );
 };

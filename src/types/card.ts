@@ -1,4 +1,3 @@
-
 export interface CreditCard {
   id: string;
   name: string;
@@ -6,7 +5,7 @@ export interface CreditCard {
   slug: string;
   image?: string;
   bank_name: string;
-  bank_id?: string | number;
+  bank_id?: number;
   joining_fee: number | string;
   annual_fee: number | string;
   welcome_offer?: string;
@@ -22,22 +21,17 @@ export interface CreditCard {
 }
 
 export interface Bank {
-  id: string | number;
+  id: string;
   name: string;
-  logo?: string;
 }
 
 export interface Tag {
-  id: string | number;
+  id: string;
   name: string;
-  slug?: string;
 }
 
 export interface ApiResponse {
-  success: boolean;
-  data: any;
-  total_records?: number;
-  current_page?: number;
-  per_page?: number;
-  has_more_pages?: boolean;
+  cards: CreditCard[];
+  banks: Bank[];
+  tags: Tag[];
 }

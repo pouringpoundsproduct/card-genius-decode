@@ -24,7 +24,7 @@ export const useCardData = () => {
     try {
       const result = await cardService.searchCards(query, selectedTags, selectedBankIds, freeCards);
       console.log('Search results:', result);
-      setCards(Array.isArray(result) ? result : []);
+      setCards(result);
       setInitialized(true);
     } catch (err) {
       console.error('Error fetching cards:', err);
@@ -57,34 +57,27 @@ export const useCardData = () => {
       const { banks: banksList, tags: tagsList } = await cardService.getBanksAndTags();
       console.log('Loaded banks:', banksList);
       console.log('Loaded tags:', tagsList);
-      setBanks(Array.isArray(banksList) ? banksList : []);
-      setTags(Array.isArray(tagsList) ? tagsList : []);
+      setBanks(banksList);
+      setTags(tagsList);
     } catch (err) {
       console.error('Error loading banks and tags:', err);
-      setBanks([]);
-      setTags([]);
+      // Fallback data is handled in the service
     }
   }, []);
 
-  const loadAllCards = useCallback(async (page: number = 1, limit: number = 20) => {
+  const loadAllCards = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('Loading all cards...', { page, limit });
-      const result = await cardService.getAllCards(page, limit);
-      console.log('All cards loaded:', result.cards.length, 'cards');
-      setCards(Array.isArray(result.cards) ? result.cards : []);
+      console.log('Loading all cards...');
+      const allCards = await cardService.getAllCards();
+      console.log('All cards loaded:', allCards.length, 'cards');
+      setCards(allCards);
       setInitialized(true);
-      return {
-        cards: result.cards,
-        hasMore: result.hasMore,
-        total: result.total
-      };
     } catch (err) {
       console.error('Error loading all cards:', err);
       setError('Unable to load cards. Please check your connection and try again.');
-      return { cards: [], hasMore: false, total: 0 };
     } finally {
       setLoading(false);
     }
@@ -98,12 +91,11 @@ export const useCardData = () => {
       console.log('Loading featured cards...');
       const featuredCards = await cardService.getFeaturedCards();
       console.log('Featured cards loaded:', featuredCards.length, 'cards');
-      setCards(Array.isArray(featuredCards) ? featuredCards : []);
+      setCards(featuredCards);
       setInitialized(true);
     } catch (err) {
       console.error('Error loading featured cards:', err);
       setError('Unable to load featured cards. Please try again.');
-      setCards([]);
     } finally {
       setLoading(false);
     }

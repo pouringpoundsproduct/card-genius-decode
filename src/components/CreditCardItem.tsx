@@ -1,28 +1,14 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Gift, Plane, Fuel, ShoppingBag, Star, Plus, Check } from 'lucide-react';
+import { ArrowRight, Gift, Plane, Fuel, ShoppingBag, Star } from 'lucide-react';
 import { CreditCard } from '../types/card';
-import { useComparison } from '../contexts/ComparisonContext';
 
 interface CreditCardItemProps {
   card: CreditCard;
 }
 
 export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
-  const { addToComparison, removeFromComparison, isInComparison, comparisonCards, maxCards } = useComparison();
-  
-  const inComparison = isInComparison(card.id);
-  const canAddMore = comparisonCards.length < maxCards;
-
-  const handleComparisonToggle = () => {
-    if (inComparison) {
-      removeFromComparison(card.id);
-    } else if (canAddMore) {
-      addToComparison(card);
-    }
-  };
-
   const getTagIcon = (tag: string) => {
     switch (tag) {
       case 'airport-lounge': return <Plane className="h-4 w-4" />;
@@ -45,6 +31,7 @@ export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
     }
   };
 
+  // Helper function to safely convert tag to string
   const getTagString = (tag: any): string => {
     if (typeof tag === 'string') {
       return tag;
@@ -57,28 +44,6 @@ export const CreditCardItem: React.FC<CreditCardItemProps> = ({ card }) => {
 
   return (
     <div className="group relative bg-gray-900/50 backdrop-blur-sm border border-gray-800/50 rounded-2xl p-6 hover:border-purple-500/30 transition-all duration-300 hover:transform hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/10">
-      {/* Comparison Button */}
-      <button
-        onClick={handleComparisonToggle}
-        disabled={!canAddMore && !inComparison}
-        className={`absolute top-4 right-4 z-10 p-2 rounded-full transition-all ${
-          inComparison 
-            ? 'bg-green-500 text-white hover:bg-green-600' 
-            : canAddMore
-            ? 'bg-gray-800 text-gray-300 hover:bg-purple-600 hover:text-white'
-            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-        }`}
-        title={
-          inComparison 
-            ? 'Remove from comparison' 
-            : canAddMore 
-            ? 'Add to comparison' 
-            : `Maximum ${maxCards} cards can be compared`
-        }
-      >
-        {inComparison ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-      </button>
-
       {/* Card Image */}
       <div className="relative mb-6">
         {card.image ? (
