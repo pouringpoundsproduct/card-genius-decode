@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Loader2, Calculator, PenTool, CreditCard } from 'lucide-react';
+import { MessageCircle, X, Send, Loader2, Calculator, PenTool, CreditCard, AlertCircle, CheckCircle } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -8,36 +8,7 @@ interface Message {
   sender: 'user' | 'bot';
   source?: string;
   timestamp: Date;
-}
-
-interface SpendingData {
-  amazon_spends: number;
-  flipkart_spends: number;
-  grocery_spends_online: number;
-  online_food_ordering: number;
-  other_online_spends: number;
-  other_offline_spends: number;
-  dining_or_going_out: number;
-  fuel: number;
-  school_fees: number;
-  rent: number;
-  mobile_phone_bills: number;
-  electricity_bills: number;
-  water_bills: number;
-  ott_channels: number;
-  hotels_annual: number;
-  flights_annual: number;
-  insurance_health_annual: number;
-  insurance_car_or_bike_annual: number;
-  large_electronics_purchase_like_mobile_tv_etc: number;
-  all_pharmacy: number;
-  domestic_lounge_usage_quarterly: number;
-  international_lounge_usage_quarterly: number;
-  railway_lounge_usage_quarterly: number;
-  movie_usage: number;
-  movie_mov: number;
-  dining_usage: number;
-  dining_mov: number;
+  error?: boolean;
 }
 
 const ChatWidget: React.FC = () => {
@@ -45,14 +16,14 @@ const ChatWidget: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: '🎯 Hi! I\'m your Advanced Credit Card Assistant powered by BankKaro & ChatGPT!\n\n✨ I can help you:\n• Find perfect credit cards\n• Analyze spending patterns\n• Create content for social media\n• Compare cards & benefits\n• Get personalized recommendations\n\nWhat would you like to explore today?',
+      text: '🎯 Hi! I\'m your Advanced Credit Card Assistant powered by ChatGPT & BankKaro!\n\n✨ I can help you:\n• Find perfect credit cards\n• Get expert advice on banking\n• Compare cards & benefits\n• Create content for social media\n• Analyze spending patterns\n• Get personalized recommendations\n\nWhat would you like to explore today?',
       sender: 'bot',
       timestamp: new Date()
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showSpendingForm, setShowSpendingForm] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -62,6 +33,26 @@ const ChatWidget: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Check backend connection when widget opens
+  useEffect(() => {
+    if (isOpen) {
+      checkBackendConnection();
+    }
+  }, [isOpen]);
+
+  const checkBackendConnection = async () => {
+    try {
+      const response = await fetch('http://localhost:4000/health');
+      if (response.ok) {
+        setConnectionStatus('connected');
+      } else {
+        setConnectionStatus('error');
+      }
+    } catch (error) {
+      setConnectionStatus('error');
+    }
+  };
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -85,9 +76,13 @@ const ChatWidget: React.FC = () => {
         },
         body: JSON.stringify({
           message: inputMessage,
-          context: 'Enhanced Credit card assistance with BankKaro integration'
+          context: 'Enhanced Credit card assistance with ChatGPT and BankKaro integration'
         }),
       });
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -95,27 +90,38 @@ const ChatWidget: React.FC = () => {
         id: (Date.now() + 1).toString(),
         text: data.response || 'Sorry, I encountered an error. Please try again.',
         sender: 'bot',
-        source: data.source,
+        source: data.source || 'ChatGPT',
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, botMessage]);
+      setConnectionStatus('connected');
     } catch (error) {
       console.error('Chat error:', error);
-      const errorMessage: Message = {
+      
+      let errorMessage = 'Sorry, I\'m having trouble connecting. ';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch')) {
+          errorMessage += 'Please make sure the backend server is running on http://localhost:4000';
+        } else {
+          errorMessage += error.message;
+        }
+      }
+
+      const errorBotMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: 'Sorry, I\'m having trouble connecting. Please make sure the backend server is running on http://localhost:4000',
+        text: errorMessage,
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        error: true
       };
-      setMessages(prev => [...prev, errorMessage]);
+      
+      setMessages(prev => [...prev, errorBotMessage]);
+      setConnectionStatus('error');
     }
 
     setIsLoading(false);
-  };
-
-  const handleSpendingAnalysis = () => {
-    setShowSpendingForm(true);
   };
 
   const handleQuickAction = (action: string) => {
@@ -123,32 +129,26 @@ const ChatWidget: React.FC = () => {
   };
 
   const quickActions = [
-    {
-      icon: <CreditCard className="h-4 w-4" />,
-      text: 'Find best credit cards for travel',
-      action: 'travel'
-    },
-    {
-      icon: <Calculator className="h-4 w-4" />,
-      text: 'Analyze my spending',
-      action: 'spending',
-      onClick: handleSpendingAnalysis
-    },
-    {
-      icon: <PenTool className="h-4 w-4" />,
-      text: 'Create social media content',
-      action: 'content'
-    }
+    'Best credit cards for travel rewards',
+    'Compare HDFC vs SBI credit cards',
+    'What is a good credit score in India?',
+    'Create Instagram post about credit card benefits',
+    'Fuel credit cards with lowest annual fee',
+    'Premium cards with airport lounge access'
   ];
 
-  const enhancedQuickActions = [
-    'Best cashback credit cards in India',
-    'Compare HDFC vs SBI credit cards',
-    'Create Instagram post about credit card benefits',
-    'Fuel credit cards with lowest fees',
-    'Premium credit cards with airport lounge access',
-    'Write article about credit card rewards'
-  ];
+  const getConnectionStatusDisplay = () => {
+    switch (connectionStatus) {
+      case 'checking':
+        return { icon: <Loader2 className="h-4 w-4 animate-spin" />, text: 'Connecting...', color: 'text-yellow-400' };
+      case 'connected':
+        return { icon: <CheckCircle className="h-4 w-4" />, text: 'ChatGPT Ready', color: 'text-green-400' };
+      case 'error':
+        return { icon: <AlertCircle className="h-4 w-4" />, text: 'Connection Error', color: 'text-red-400' };
+    }
+  };
+
+  const statusDisplay = getConnectionStatusDisplay();
 
   return (
     <>
@@ -169,7 +169,13 @@ const ChatWidget: React.FC = () => {
               <CreditCard className="h-5 w-5" />
               Credit Card AI Assistant
             </h3>
-            <p className="text-blue-100 text-sm">BankKaro + ChatGPT Integration</p>
+            <div className="flex items-center justify-between">
+              <p className="text-blue-100 text-sm">Powered by ChatGPT & BankKaro</p>
+              <div className={`flex items-center gap-1 text-xs ${statusDisplay.color}`}>
+                {statusDisplay.icon}
+                <span>{statusDisplay.text}</span>
+              </div>
+            </div>
           </div>
 
           {/* Messages */}
@@ -183,15 +189,17 @@ const ChatWidget: React.FC = () => {
                   className={`max-w-[85%] p-3 rounded-lg ${
                     message.sender === 'user'
                       ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                      : message.error
+                      ? 'bg-red-50 text-red-800 border border-red-200'
                       : 'bg-gray-100 text-gray-800'
                   }`}
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                  {message.source && (
+                  {message.source && !message.error && (
                     <p className={`text-xs mt-1 ${
                       message.sender === 'user' ? 'text-blue-100' : 'text-gray-600'
                     }`}>
-                      {message.source}
+                      💬 {message.source}
                     </p>
                   )}
                 </div>
@@ -202,7 +210,7 @@ const ChatWidget: React.FC = () => {
               <div className="flex justify-start">
                 <div className="bg-gray-100 p-3 rounded-lg flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm text-gray-600">Thinking...</span>
+                  <span className="text-sm text-gray-600">ChatGPT is thinking...</span>
                 </div>
               </div>
             )}
@@ -210,28 +218,13 @@ const ChatWidget: React.FC = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Enhanced Quick Actions */}
+          {/* Quick Actions */}
           {messages.length === 1 && (
             <div className="p-4 border-t border-gray-200 max-h-48 overflow-y-auto">
-              <p className="text-xs text-gray-600 mb-3 font-medium">🚀 Quick Actions:</p>
+              <p className="text-xs text-gray-600 mb-3 font-medium">🚀 Try these questions:</p>
               
-              {/* Feature buttons */}
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                {quickActions.map((item, index) => (
-                  <button
-                    key={index}
-                    onClick={item.onClick || (() => handleQuickAction(item.text))}
-                    className="flex items-center gap-2 text-xs p-2 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded transition-colors border border-blue-200"
-                  >
-                    {item.icon}
-                    <span className="truncate">{item.text}</span>
-                  </button>
-                ))}
-              </div>
-              
-              {/* Text suggestions */}
               <div className="space-y-1">
-                {enhancedQuickActions.slice(0, 4).map((action, index) => (
+                {quickActions.map((action, index) => (
                   <button
                     key={index}
                     onClick={() => handleQuickAction(action)}
@@ -246,19 +239,24 @@ const ChatWidget: React.FC = () => {
 
           {/* Enhanced Input */}
           <div className="p-4 border-t border-gray-200">
+            {connectionStatus === 'error' && (
+              <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+                Backend connection failed. Please ensure the server is running.
+              </div>
+            )}
             <div className="flex space-x-2">
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Ask about credit cards, spending analysis, or content creation..."
+                placeholder="Ask ChatGPT about credit cards..."
                 className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={isLoading}
+                disabled={isLoading || connectionStatus === 'error'}
               />
               <button
                 onClick={sendMessage}
-                disabled={isLoading || !inputMessage.trim()}
+                disabled={isLoading || !inputMessage.trim() || connectionStatus === 'error'}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 text-white p-2 rounded-lg transition-colors"
               >
                 <Send className="h-4 w-4" />
