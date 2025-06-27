@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useCardData } from './useCardData';
 
@@ -9,17 +8,18 @@ export const useSearchState = () => {
   const [showFreeCards, setShowFreeCards] = useState<boolean>(false);
   const [showFilters, setShowFilters] = useState(false);
   
-  const { cards, loading, error, banks, tags, searchCards, loadBanksAndTags } = useCardData();
+  const { cards, loading, error, banks, tags, searchCards, loadBanksAndTags, loadAllCards } = useCardData();
 
   useEffect(() => {
     const initializeData = async () => {
       console.log('Initializing search page...');
       await loadBanksAndTags();
+      await loadAllCards();
       await searchCards(searchQuery, selectedTags, selectedBankIds, showFreeCards);
     };
     
     initializeData();
-  }, [loadBanksAndTags]);
+  }, [loadBanksAndTags, loadAllCards]);
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);

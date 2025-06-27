@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { CreditCard } from '../types/card';
 import { cardService } from '../services/cardService';
@@ -10,46 +9,6 @@ export const useCardData = () => {
   const [banks, setBanks] = useState<any[]>([]);
   const [tags, setTags] = useState<any[]>([]);
   const [initialized, setInitialized] = useState(false);
-
-  const searchCards = useCallback(async (
-    query: string = '', 
-    selectedTags: string[] = [], 
-    selectedBankIds: string[] = [],
-    freeCards: boolean = false
-  ) => {
-    console.log('searchCards called with:', { query, selectedTags, selectedBankIds, freeCards });
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const result = await cardService.searchCards(query, selectedTags, selectedBankIds, freeCards);
-      console.log('Search results:', result);
-      setCards(result);
-      setInitialized(true);
-    } catch (err) {
-      console.error('Error fetching cards:', err);
-      setError('Failed to load cards. Please try again.');
-      setCards([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const getCardDetails = useCallback(async (slug: string) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const card = await cardService.getCardDetails(slug);
-      return card;
-    } catch (err) {
-      console.error('Error fetching card details:', err);
-      setError('Failed to load card details. Please try again.');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const loadBanksAndTags = useCallback(async () => {
     try {
@@ -96,6 +55,52 @@ export const useCardData = () => {
     } catch (err) {
       console.error('Error loading featured cards:', err);
       setError('Unable to load featured cards. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const searchCards = useCallback(async (
+    query: string = '', 
+    selectedTags: string[] = [], 
+    selectedBankIds: string[] = [],
+    freeCards: boolean = false
+  ) => {
+    console.log('searchCards called with:', { query, selectedTags, selectedBankIds, freeCards });
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // For local search, we need to ensure all cards are loaded first
+      if (!initialized) {
+        console.log('Initializing with all cards for local search...');
+        await loadAllCards();
+      }
+      
+      const result = await cardService.searchCards(query, selectedTags, selectedBankIds, freeCards);
+      console.log('Search results:', result);
+      setCards(result);
+      setInitialized(true);
+    } catch (err) {
+      console.error('Error fetching cards:', err);
+      setError('Failed to load cards. Please try again.');
+      setCards([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [initialized, loadAllCards]);
+
+  const getCardDetails = useCallback(async (slug: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const card = await cardService.getCardDetails(slug);
+      return card;
+    } catch (err) {
+      console.error('Error fetching card details:', err);
+      setError('Failed to load card details. Please try again.');
+      return null;
     } finally {
       setLoading(false);
     }
