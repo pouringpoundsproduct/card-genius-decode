@@ -1,4 +1,3 @@
-
 const axios = require('axios');
 const { API_ENDPOINTS } = require('../config/apiConfig');
 
@@ -35,7 +34,45 @@ class BankService {
       }
     } catch (error) {
       console.error('Failed to initialize bank mappings:', error.message);
+      console.log('🔄 Using fallback bank mappings...');
+      await this.loadFallbackBankMappings();
       return false;
+    }
+  }
+
+  /**
+   * Load fallback bank mappings when API is unavailable
+   */
+  async loadFallbackBankMappings() {
+    try {
+      const fallbackBanks = [
+        { id: 1, name: 'HDFC Bank', logo: '' },
+        { id: 2, name: 'ICICI Bank', logo: '' },
+        { id: 3, name: 'State Bank of India', logo: '' },
+        { id: 4, name: 'Axis Bank', logo: '' },
+        { id: 5, name: 'Kotak Mahindra Bank', logo: '' },
+        { id: 6, name: 'Yes Bank', logo: '' },
+        { id: 7, name: 'IndusInd Bank', logo: '' },
+        { id: 8, name: 'RBL Bank', logo: '' },
+        { id: 9, name: 'Federal Bank', logo: '' },
+        { id: 10, name: 'IDFC First Bank', logo: '' }
+      ];
+
+      this.bankCache = { banks: fallbackBanks };
+      this.bankMappings.clear();
+      
+      fallbackBanks.forEach(bank => {
+        this.bankMappings.set(bank.id.toString(), {
+          name: bank.name,
+          logo: bank.logo || '',
+          ...bank
+        });
+      });
+      
+      this.lastCacheUpdate = Date.now();
+      console.log(`Fallback bank mappings loaded: ${this.bankMappings.size} banks`);
+    } catch (error) {
+      console.error('Failed to load fallback bank mappings:', error.message);
     }
   }
 

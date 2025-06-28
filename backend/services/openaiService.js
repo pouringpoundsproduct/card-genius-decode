@@ -1,31 +1,40 @@
-
-const OpenAI = require('openai');
+const axios = require('axios');
+const { RAG_CONFIG } = require('../config/rag_config');
 
 class OpenAIService {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
+    this.apiKey = RAG_CONFIG.OPENAI_API_KEY;
+    this.baseURL = 'https://api.openai.com/v1';
   }
 
   async getChatGPTResponse(message, context) {
-    const completion = await this.openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: context || "You are a helpful credit card expert assistant focusing on the Indian market. Provide accurate, helpful information about credit cards, banking, and financial topics. Focus on practical advice and recommendations suitable for Indian users."
-        },
-        {
-          role: "user",
-          content: message
+    try {
+      const response = await axios.post(`${this.baseURL}/chat/completions`, {
+        model: RAG_CONFIG.OPENAI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: context || "You are a helpful credit card expert assistant focusing on the Indian market. Provide accurate, helpful information about credit cards, banking, and financial topics. Focus on practical advice and recommendations suitable for Indian users."
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ],
+        max_tokens: RAG_CONFIG.OPENAI_MAX_TOKENS,
+        temperature: RAG_CONFIG.OPENAI_TEMPERATURE,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
         }
-      ],
-      max_tokens: 600,
-      temperature: 0.7,
-    });
-    
-    return completion.choices[0].message.content;
+      });
+      
+      return response.data.choices[0].message.content;
+    } catch (error) {
+      console.error('OpenAI API Error:', error.response?.data || error.message);
+      throw error;
+    }
   }
 
   async handleContentCreation(message, context) {
@@ -59,23 +68,33 @@ class OpenAIService {
       
       Content should be informative, actionable, and help readers make better financial decisions.`;
     
-    const completion = await this.openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "You are a professional content creator specializing in Indian credit card and fintech content. Create engaging, informative content that helps users make better financial decisions. Always include practical tips and real examples relevant to the Indian market."
-        },
-        {
-          role: "user",
-          content: prompt
+    try {
+      const response = await axios.post(`${this.baseURL}/chat/completions`, {
+        model: RAG_CONFIG.OPENAI_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are a professional content creator specializing in Indian credit card and fintech content. Create engaging, informative content that helps users make better financial decisions. Always include practical tips and real examples relevant to the Indian market."
+          },
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 1000,
+        temperature: 0.8,
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`
         }
-      ],
-      max_tokens: 1000,
-      temperature: 0.8,
-    });
-    
-    return completion.choices[0].message.content;
+      });
+      
+      return response.data.choices[0].message.content;
+    } catch (error) {
+      console.error('OpenAI Content Creation Error:', error.response?.data || error.message);
+      throw error;
+    }
   }
 }
 
