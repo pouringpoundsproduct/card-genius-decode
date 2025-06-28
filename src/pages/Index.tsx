@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle, BarChart3 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, Filter, CreditCard, ArrowRight, Sparkles, AlertCircle, BarChart3, MessageCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { SearchBar } from '../components/SearchBar';
 import { CardGrid } from '../components/CardGrid';
 import { TagFilters } from '../components/TagFilters';
@@ -11,6 +11,7 @@ import { useCardData } from '../hooks/useCardData';
 import { useComparison } from '../contexts/ComparisonContext';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
@@ -42,6 +43,10 @@ const Index = () => {
       // Reset to all cards when search is cleared
       await loadAllCards();
     }
+  };
+
+  const handleAIAssistantClick = () => {
+    navigate('/ai-assistant');
   };
 
   const handleTagSelect = async (tagSlug: string) => {
@@ -139,6 +144,17 @@ const Index = () => {
               placeholder="Search credit cards or banks..."
               debounceMs={500}
             />
+            
+            {/* AI Assistant Button */}
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={handleAIAssistantClick}
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <MessageCircle className="h-5 w-5" />
+                Ask AI Assistant
+              </button>
+            </div>
           </div>
         </div>
         

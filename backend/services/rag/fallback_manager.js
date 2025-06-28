@@ -1,6 +1,7 @@
 const { RAG_CONFIG } = require('../../config/rag_config');
 const scoringSystem = require('./scoring');
 const openaiService = require('../openaiService');
+const vectorStore = require('./vector_store');
 const axios = require('axios');
 
 class FallbackManager {
@@ -48,46 +49,85 @@ class FallbackManager {
   }
 
   /**
-   * Try API tier (Tier 1)
+   * Try API tier (Tier 1) - Use vector store for API data
    */
   async tryAPITier(query, context) {
     try {
       console.log('🔍 Trying API tier...');
       
-      // Call BankKaro API
-      const apiPayload = {
-        slug: "",
-        banks_ids: [],
-        card_networks: [],
-        annualFees: "",
-        credit_score: "",
-        sort_by: "",
-        free_cards: "",
-        eligiblityPayload: {},
-        cardGeniusPayload: {}
-      };
-
-      const response = await axios.post(`${RAG_CONFIG.BANKKARO_API_BASE}/cards`, apiPayload, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (response.data && response.data.data && response.data.data.cards) {
-        const cards = response.data.data.cards;
-        const relevantCards = this.findRelevantCards(query, cards);
+      // Check if query is credit card related
+      const queryLower = query.toLowerCase();
+      const creditCardKeywords = [
+        'credit card', 'card', 'hdfc', 'sbi', 'icici', 'axis', 'kotak', 'yes bank', 'indusind',
+        'rewards', 'cashback', 'travel', 'lounge', 'annual fee', 'joining fee', 'benefits',
+        'compare', 'best', 'top', 'list', 'details', 'information', 'features'
+      ];
+      
+      const isCreditCardQuery = creditCardKeywords.some(keyword => queryLower.includes(keyword));
+      
+      if (!isCreditCardQuery) {
+        console.log('❌ Query not credit card related, skipping API tier');
+        return null;
+      }
+      
+      // Search API data in vector store
+      const apiResults = await vectorStore.searchAPIData(query, RAG_CONFIG.MAX_RETRIEVAL_RESULTS);
+      
+      console.log(`📊 API search results:`, apiResults.length);
+      
+      if (apiResults && apiResults.length > 0) {
+        console.log(`📊 Found ${apiResults.length} relevant API results`);
+        
+        // Extract card data from vector store results
+        const relevantCards = apiResults.map(result => result.data).filter(card => card);
+        
+        console.log(`📊 Relevant cards found:`, relevantCards.length);
+        console.log(`📊 Sample card:`, relevantCards[0]?.name);
         
         if (relevantCards.length > 0) {
-          const responseText = this.formatCardResponse(relevantCards, query);
-          const confidence = scoringSystem.calculateConfidenceScore(query, responseText, 'api');
+          // Check if the results are actually relevant to the query
+          const relevanceScore = this.calculateRelevanceScore(query, relevantCards);
+          console.log(`📊 Relevance score: ${relevanceScore.toFixed(2)}`);
           
-          return {
-            answer: responseText,
-            confidence,
-            cards: relevantCards,
-            source: 'api'
-          };
+          if (relevanceScore < 0.3) {
+            console.log('❌ API results not relevant enough, trying next tier');
+            return null;
+          }
+          
+          const responseText = this.formatCardResponse(relevantCards, query);
+          
+          // Calculate confidence based on relevance and number of results
+          const baseConfidence = Math.min(0.8, 0.4 + (relevantCards.length * 0.1));
+          
+          // Boost confidence for specific queries
+          let confidence = baseConfidence;
+          if (queryLower.includes('hdfc') || queryLower.includes('sbi') || queryLower.includes('icici')) {
+            confidence += 0.2; // Boost for bank-specific queries
+          }
+          if (queryLower.includes('list') || queryLower.includes('top') || queryLower.includes('best')) {
+            confidence += 0.1; // Boost for list/top queries
+          }
+          
+          confidence = Math.min(confidence, 0.95); // Cap at 0.95
+          
+          console.log(`📊 API tier confidence: ${confidence.toFixed(2)}`);
+          console.log(`📊 Confidence threshold: ${this.confidenceThreshold}`);
+          
+          if (confidence >= this.confidenceThreshold) {
+            console.log('✅ API tier response accepted');
+            return {
+              answer: responseText,
+              confidence,
+              cards: relevantCards,
+              source: 'api'
+            };
+          } else {
+            console.log('❌ API tier confidence too low, trying next tier');
+          }
         }
       }
       
+      console.log('❌ No relevant API results found');
       return null;
     } catch (error) {
       console.error('❌ API tier failed:', error.message);
@@ -96,26 +136,65 @@ class FallbackManager {
   }
 
   /**
-   * Try MITC tier (Tier 2)
+   * Try MITC tier (Tier 2) - Use vector store for MITC documents
    */
   async tryMITCTier(query, context) {
     try {
       console.log('🔍 Trying MITC tier...');
       
-      // This would integrate with the vector store to search MITC documents
-      // For now, return a placeholder response
-      const mitcResponse = `Based on the MITC documents, here are the key terms and conditions related to your query: "${query}". 
+      // Check if query is credit card related
+      const queryLower = query.toLowerCase();
+      const creditCardKeywords = [
+        'credit card', 'card', 'hdfc', 'sbi', 'icici', 'axis', 'kotak', 'yes bank', 'indusind',
+        'rewards', 'cashback', 'travel', 'lounge', 'annual fee', 'joining fee', 'benefits',
+        'compare', 'best', 'top', 'list', 'details', 'information', 'features', 'terms', 'conditions'
+      ];
       
-      Please note that specific terms may vary by card and are subject to change. For the most current information, 
-      please refer to the official bank documents or contact the bank directly.`;
+      const isCreditCardQuery = creditCardKeywords.some(keyword => queryLower.includes(keyword));
       
-      const confidence = scoringSystem.calculateConfidenceScore(query, mitcResponse, 'mitc');
+      if (!isCreditCardQuery) {
+        console.log('❌ Query not credit card related, skipping MITC tier');
+        return null;
+      }
       
-      return {
-        answer: mitcResponse,
-        confidence,
-        source: 'mitc'
-      };
+      // Search MITC documents in vector store
+      const mitcResults = await vectorStore.searchMITCDocuments(query, RAG_CONFIG.MAX_RETRIEVAL_RESULTS);
+      
+      console.log(`📄 MITC search results:`, mitcResults.length);
+      
+      if (mitcResults && mitcResults.length > 0) {
+        console.log(`📄 Found ${mitcResults.length} relevant MITC results`);
+        
+        // Combine MITC document content
+        const mitcContent = mitcResults.map(result => result.text).join('\n\n');
+        
+        const mitcResponse = `Based on the MITC documents, here are the relevant terms and conditions for your query: "${query}"
+
+${mitcContent}
+
+Please note that specific terms may vary by card and are subject to change. For the most current information, 
+please refer to the official bank documents or contact the bank directly.`;
+        
+        const confidence = Math.min(0.7, 0.4 + (mitcResults.length * 0.1));
+        
+        console.log(`📄 MITC tier confidence: ${confidence.toFixed(2)}`);
+        
+        if (confidence >= this.confidenceThreshold) {
+          console.log('✅ MITC tier response accepted');
+          return {
+            answer: mitcResponse,
+            confidence,
+            source: 'mitc',
+            documents: mitcResults.map(result => result.cardName)
+          };
+        } else {
+          console.log('❌ MITC tier confidence too low, trying next tier');
+        }
+      } else {
+        console.log('❌ No MITC documents found');
+      }
+      
+      return null;
     } catch (error) {
       console.error('❌ MITC tier failed:', error.message);
       return null;
@@ -150,61 +229,62 @@ class FallbackManager {
   }
 
   /**
-   * Find relevant cards based on query
+   * Calculate relevance score between query and cards
    */
-  findRelevantCards(query, cards) {
+  calculateRelevanceScore(query, cards) {
     const queryLower = query.toLowerCase();
-    const relevantCards = [];
+    let totalScore = 0;
+    let maxPossibleScore = 0;
     
     for (const card of cards) {
-      let relevanceScore = 0;
+      let cardScore = 0;
+      let cardMaxScore = 0;
       
-      // Check card name
-      if (card.name && card.name.toLowerCase().includes(queryLower)) {
-        relevanceScore += 3;
+      // Check card name relevance
+      if (card.name) {
+        cardMaxScore += 3;
+        if (queryLower.includes(card.name.toLowerCase())) {
+          cardScore += 3;
+        } else if (card.name.toLowerCase().includes(queryLower)) {
+          cardScore += 2;
+        }
       }
       
-      // Check bank name
-      if (card.bank_name && card.bank_name.toLowerCase().includes(queryLower)) {
-        relevanceScore += 2;
+      // Check bank name relevance
+      if (card.bank_name) {
+        cardMaxScore += 2;
+        if (queryLower.includes(card.bank_name.toLowerCase())) {
+          cardScore += 2;
+        }
       }
       
-      // Check card type
-      if (card.card_type && card.card_type.toLowerCase().includes(queryLower)) {
-        relevanceScore += 2;
-      }
-      
-      // Check rewards/benefits
-      if (card.rewards && card.rewards.toLowerCase().includes(queryLower)) {
-        relevanceScore += 1;
-      }
-      
-      if (card.benefits && card.benefits.toLowerCase().includes(queryLower)) {
-        relevanceScore += 1;
-      }
-      
-      // Check for specific keywords
-      const keywords = ['travel', 'cashback', 'rewards', 'lounge', 'free', 'premium'];
+      // Check for specific keywords in query
+      const keywords = ['travel', 'cashback', 'rewards', 'lounge', 'free', 'premium', 'fuel', 'dining'];
       for (const keyword of keywords) {
         if (queryLower.includes(keyword)) {
+          cardMaxScore += 1;
           if (card.rewards && card.rewards.toLowerCase().includes(keyword)) {
-            relevanceScore += 1;
+            cardScore += 1;
           }
           if (card.benefits && card.benefits.toLowerCase().includes(keyword)) {
-            relevanceScore += 1;
+            cardScore += 1;
           }
         }
       }
       
-      if (relevanceScore > 0) {
-        relevantCards.push({ ...card, relevanceScore });
+      // Check for specific card types
+      if (queryLower.includes('phonepe') && card.name && card.name.toLowerCase().includes('phonepe')) {
+        cardScore += 5;
+        cardMaxScore += 5;
+      }
+      
+      if (cardMaxScore > 0) {
+        totalScore += cardScore / cardMaxScore;
+        maxPossibleScore += 1;
       }
     }
     
-    // Sort by relevance score and return top 5
-    return relevantCards
-      .sort((a, b) => b.relevanceScore - a.relevanceScore)
-      .slice(0, 5);
+    return maxPossibleScore > 0 ? totalScore / maxPossibleScore : 0;
   }
 
   /**
@@ -215,32 +295,61 @@ class FallbackManager {
       return "I couldn't find any credit cards matching your criteria. Please try rephrasing your query or check with the bank directly.";
     }
     
-    let response = `Based on your query "${query}", here are some relevant credit cards:\n\n`;
+    const queryLower = query.toLowerCase();
+    const isListQuery = queryLower.includes('list') || queryLower.includes('top') || queryLower.includes('best');
+    const isBankSpecific = queryLower.includes('hdfc') || queryLower.includes('sbi') || queryLower.includes('icici');
     
-    for (let i = 0; i < Math.min(cards.length, 3); i++) {
+    // Determine how many cards to show
+    let maxCards = 3;
+    if (queryLower.includes('top 3') || queryLower.includes('top3')) {
+      maxCards = 3;
+    } else if (queryLower.includes('top 5') || queryLower.includes('top5')) {
+      maxCards = 5;
+    } else if (queryLower.includes('all') || queryLower.includes('complete')) {
+      maxCards = cards.length;
+    }
+    
+    let response = '';
+    
+    if (isListQuery) {
+      response = `Here are the ${maxCards === cards.length ? 'available' : `top ${Math.min(maxCards, cards.length)}`} credit cards based on your query "${query}":\n\n`;
+    } else {
+      response = `Based on your query "${query}", here are some relevant credit cards:\n\n`;
+    }
+    
+    for (let i = 0; i < Math.min(cards.length, maxCards); i++) {
       const card = cards[i];
-      response += `${i + 1}. **${card.name}** (${card.bank_name})\n`;
+      const bankName = card.bank_name || 'Unknown Bank';
+      response += `${i + 1}. **${card.name}** (${bankName})\n`;
       
       if (card.annual_fee) {
-        response += `   Annual Fee: ${card.annual_fee}\n`;
+        response += `   💳 Annual Fee: ${card.annual_fee}\n`;
       }
       
       if (card.rewards) {
-        response += `   Rewards: ${card.rewards}\n`;
+        response += `   🎁 Rewards: ${card.rewards}\n`;
       }
       
       if (card.benefits) {
-        response += `   Benefits: ${card.benefits}\n`;
+        response += `   ⭐ Benefits: ${card.benefits}\n`;
+      }
+      
+      if (card.eligibility) {
+        response += `   📋 Eligibility: ${card.eligibility}\n`;
       }
       
       response += '\n';
     }
     
-    if (cards.length > 3) {
-      response += `... and ${cards.length - 3} more cards available.\n\n`;
+    if (cards.length > maxCards) {
+      response += `... and ${cards.length - maxCards} more cards available.\n\n`;
     }
     
-    response += "For detailed information and to apply, please visit the respective bank's website or contact them directly.";
+    if (isBankSpecific) {
+      response += "💡 **Tip**: For the most current information, offers, and to apply, please visit the respective bank's website or contact them directly.";
+    } else {
+      response += "For detailed information and to apply, please visit the respective bank's website or contact them directly.";
+    }
     
     return response;
   }

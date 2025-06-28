@@ -6,7 +6,7 @@ const RAG_CONFIG = {
   MAX_RETRIEVAL_RESULTS: parseInt(process.env.MAX_RETRIEVAL_RESULTS) || 5,
   
   // Scoring and Thresholds
-  CONFIDENCE_THRESHOLD: parseFloat(process.env.RAG_CONFIDENCE_THRESHOLD) || 0.7,
+  CONFIDENCE_THRESHOLD: parseFloat(process.env.RAG_CONFIDENCE_THRESHOLD) || 0.3,
   API_SCORE_WEIGHT: 0.4,
   MITC_SCORE_WEIGHT: 0.35,
   OPENAI_SCORE_WEIGHT: 0.25,

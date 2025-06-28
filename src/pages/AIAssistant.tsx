@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -16,7 +17,8 @@ import {
   Brain,
   Zap,
   TrendingUp,
-  MessageCircle
+  MessageCircle,
+  ArrowLeft
 } from 'lucide-react';
 
 interface Message {
@@ -50,6 +52,7 @@ interface SystemStats {
 }
 
 const AIAssistant: React.FC = () => {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +74,10 @@ const AIAssistant: React.FC = () => {
     const interval = setInterval(checkSystemStatus, 30000); // Check every 30 seconds
     return () => clearInterval(interval);
   }, []);
+
+  const handleBackToSearch = () => {
+    navigate('/search');
+  };
 
   const checkSystemStatus = async () => {
     try {
@@ -246,6 +253,16 @@ const AIAssistant: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <Button
+              variant="outline"
+              onClick={handleBackToSearch}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Search
+            </Button>
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
             <Bot className="h-8 w-8 text-blue-600" />
             AI Credit Card Assistant
@@ -342,7 +359,7 @@ const AIAssistant: React.FC = () => {
                                 </div>
                               )}
 
-                              <p className="whitespace-pre-wrap">{message.response}</p>
+                              <p className="whitespace-pre-wrap">{message.isUser ? message.query : message.response}</p>
 
                               {!message.isUser && message.cards_recommended.length > 0 && (
                                 <div className="mt-3 p-3 bg-muted rounded-lg">

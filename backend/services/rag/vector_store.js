@@ -112,6 +112,27 @@ class VectorStore {
   }
 
   /**
+   * Search API data with enhanced results
+   */
+  async searchAPIData(query, limit = RAG_CONFIG.MAX_RETRIEVAL_RESULTS) {
+    try {
+      const results = await this.searchAPI(query, limit);
+      
+      // Enhance results with card data
+      return results.map(result => ({
+        ...result,
+        data: result.metadata?.card || null,
+        text: result.metadata?.text || '',
+        cardName: result.metadata?.card?.name || '',
+        bankName: result.metadata?.card?.bank_name || ''
+      }));
+    } catch (error) {
+      console.error('❌ Error searching API data:', error);
+      return [];
+    }
+  }
+
+  /**
    * Search in MITC vector database
    */
   async searchMITC(query, limit = RAG_CONFIG.MAX_RETRIEVAL_RESULTS) {
@@ -134,6 +155,27 @@ class VectorStore {
         .slice(0, limit);
     } catch (error) {
       console.error('❌ Error searching MITC vector database:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Search MITC documents with enhanced results
+   */
+  async searchMITCDocuments(query, limit = RAG_CONFIG.MAX_RETRIEVAL_RESULTS) {
+    try {
+      const results = await this.searchMITC(query, limit);
+      
+      // Enhance results with document data
+      return results.map(result => ({
+        ...result,
+        text: result.metadata?.text || '',
+        cardName: result.metadata?.cardName || '',
+        documentPath: result.metadata?.documentPath || '',
+        chunkIndex: result.metadata?.chunkIndex || 0
+      }));
+    } catch (error) {
+      console.error('❌ Error searching MITC documents:', error);
       return [];
     }
   }
